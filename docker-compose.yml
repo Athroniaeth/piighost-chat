@@ -1,0 +1,56 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      - BACKEND_URL=http://backend:8001
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    environment:
+      - PIIGHOST_API_URL=http://piighost-api:8000
+      - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gpt-5.4-mini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
+    depends_on:
+      - piighost-api
+      - postgres
+
+  piighost-api:
+    image: ghcr.io/athroniaeth/piighost-api:latest
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SECRET_PEPPER=${SECRET_PEPPER:-}
+      - API_KEY_default=${PIIGHOST_API_KEY:-}
+    volumes:
+      - ./pipeline.py:/app/pipeline.py
+      - huggingface-cache:/root/.cache/huggingface
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=piighost
+      - POSTGRES_PASSWORD=piighost
+      - POSTGRES_DB=piighost_chat
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  redis-data:
+  huggingface-cache:
+  postgres-data:
