@@ -1,15 +1,6 @@
-node_modules/
-.env
-__pycache__/
-*.pyc
-.venv/
-dist/
-build/
-.svelte-kit/
-*.egg-info/
-.idea/
 ### Python template
 # Byte-compiled / optimized / DLL files
+__pycache__/
 *.py[cod]
 *$py.class
 
@@ -18,7 +9,9 @@ build/
 
 # Distribution / packaging
 .Python
+build/
 develop-eggs/
+dist/
 downloads/
 eggs/
 .eggs/
@@ -29,6 +22,7 @@ sdist/
 var/
 wheels/
 share/python-wheels/
+*.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
@@ -129,6 +123,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.env
 .venv
 env/
 venv/
