@@ -33,13 +33,13 @@ export async function fetchMessages(threadId: string): Promise<ChatMessage[]> {
 }
 
 export async function* streamChat(
-	anonymizedText: string,
+	message: string,
 	threadId: string
 ): AsyncGenerator<string> {
 	const res = await fetch(`${BACKEND_URL}/api/chat`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ anonymized_text: anonymizedText, thread_id: threadId })
+		body: JSON.stringify({ message, thread_id: threadId })
 	});
 	if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
 

@@ -5,7 +5,6 @@
 		messages,
 		status,
 		threadId,
-		pendingAnonymized,
 		pendingEntities,
 		isIdle,
 		isReviewing
@@ -27,7 +26,6 @@
 
 		try {
 			const result = await anonymize(message, get(threadId));
-			pendingAnonymized.set(result.anonymized_text);
 			pendingEntities.set(result.entities);
 
 			messages.update((m) => [
@@ -49,20 +47,24 @@
 	}
 
 	async function handleValidate() {
-		const anonymizedText = get(pendingAnonymized);
 		const entities = get(pendingEntities);
 		allEntities = [...allEntities, ...entities];
 
+		// Get the original user message (last user message in the list)
+		const currentMessages = get(messages);
+		const lastUserMsg = currentMessages.findLast((m) => m.role === 'user');
+		const originalMessage = lastUserMsg?.content ?? '';
+
 		status.set('streaming');
-		messages.update((m) => [...m, { role: 'assistant', content: '', entities: allEntities }]);
+		messages.update((m) => [...m, { role: 'assistant', content: '' }]);
 
 		try {
-			for await (const chunk of streamChat(anonymizedText, get(threadId))) {
+			for await (const chunk of streamChat(originalMessage, get(threadId))) {
 				messages.update((m) => {
 					const last = m[m.length - 1];
 					return [
 						...m.slice(0, -1),
-						{ ...last, content: last.content + chunk, entities: allEntities }
+						{ ...last, content: last.content + chunk }
 					];
 				});
 				scrollToBottom();

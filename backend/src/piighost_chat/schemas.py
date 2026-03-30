@@ -19,7 +19,7 @@ class AnonymizeResponse(msgspec.Struct):
 
 
 class ChatRequest(msgspec.Struct):
-    anonymized_text: str
+    message: str
     thread_id: str = "default"
 
 

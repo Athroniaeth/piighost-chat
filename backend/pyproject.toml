@@ -9,15 +9,16 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "piighost[client]>=0.4",
+    "piighost[client,middleware]>=0.4",
     "langchain>=1.2",
     "langchain-openai>=0.3",
-    "langchain-postgres>=0.0.12",
+    "langgraph-checkpoint-postgres>=2.0",
     "litestar>=2.16",
     "uvicorn>=0.34",
     "msgspec>=0.19",
     "psycopg[binary]>=3.2",
     "keyshield[cli]>=2.0.0",
+    "aiocache>=0.12.3",
 ]
 
 [project.scripts]
