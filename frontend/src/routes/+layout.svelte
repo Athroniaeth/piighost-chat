@@ -7,7 +7,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>piighost-chat</title>
+	<title>piighost</title>
 </svelte:head>
 
 {@render children()}
