@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Entity } from '$lib/api';
-	import { getEntityColor } from '$lib/constants/colors';
+	import { getEntityBubbleColor } from '$lib/constants/colors';
 
 	interface Props {
 		text: string;
@@ -47,18 +47,16 @@
 	let segments = $derived(buildSegments(text, entities));
 </script>
 
-<span>
+<span class="leading-relaxed">
 	{#each segments as seg}
 		{#if seg.entity}
 			<span
-				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {getEntityColor(seg.entity.label)}"
+				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {getEntityBubbleColor(seg.entity.label)}"
 				title={seg.entity.label}
 			>
 				{seg.text}
-				<span class="opacity-60">{seg.entity.label}</span>
+				<span class="opacity-50 text-[10px]">{seg.entity.label}</span>
 			</span>
-		{:else}
-			{seg.text}
-		{/if}
+		{:else}{seg.text}{/if}
 	{/each}
 </span>

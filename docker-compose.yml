@@ -1,10 +1,10 @@
 services:
   frontend:
-    build: ./frontend
+    build: ./frontend_v2
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
-      - BACKEND_URL=http://backend:8001
+      - VITE_BACKEND_URL=http://localhost:${BACKEND_PORT:-8001}
     depends_on:
       backend:
         condition: service_healthy
@@ -12,7 +12,7 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5173"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   backend:
     build: ./backend
@@ -33,7 +33,7 @@ services:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   piighost-api:
     image: ghcr.io/athroniaeth/piighost-api:latest
@@ -61,7 +61,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   postgres:
     image: postgres:17-alpine
@@ -74,10 +74,10 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U piighost"]
+      test: ["CMD-SHELL", "pg_isready -U piighost -d piighost_chat"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
 volumes:
   redis-data:

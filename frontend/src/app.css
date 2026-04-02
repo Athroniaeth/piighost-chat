@@ -1,25 +1,23 @@
+@import './lib/styles/variables.css';
 @import 'tailwindcss';
 
 @theme {
 	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-
-	--color-ghost-50: #f5f3ff;
-	--color-ghost-100: #ede9fe;
-	--color-ghost-200: #ddd6fe;
-	--color-ghost-300: #c4b5fd;
-	--color-ghost-400: #a78bfa;
-	--color-ghost-500: #8b5cf6;
-	--color-ghost-600: #7c3aed;
-	--color-ghost-700: #6d28d9;
-	--color-ghost-800: #5b21b6;
-	--color-ghost-900: #4c1d95;
 }
 
-body {
-	background: linear-gradient(135deg, #fafafa 0%, #f5f3ff 100%);
-	min-height: 100vh;
+/* Scrollbar */
+::-webkit-scrollbar {
+	width: 6px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb);
+	border-radius: 3px;
 }
 
+/* Animations */
 @keyframes slide-up {
 	from {
 		opacity: 0;
@@ -32,18 +30,11 @@ body {
 }
 
 @keyframes fade-in {
-	from { opacity: 0; }
-	to { opacity: 1; }
-}
-
-@keyframes pulse-dot {
-	0%, 80%, 100% {
-		opacity: 0.3;
-		transform: scale(0.8);
+	from {
+		opacity: 0;
 	}
-	40% {
+	to {
 		opacity: 1;
-		transform: scale(1);
 	}
 }
 
@@ -53,4 +44,87 @@ body {
 
 .animate-fade-in {
 	animation: fade-in 0.3s ease-out both;
+}
+
+/* Markdown body */
+.markdown-body p {
+	margin: 0.3em 0;
+}
+.markdown-body ul,
+.markdown-body ol {
+	padding-left: 1.5em;
+	margin: 0.5em 0;
+}
+.markdown-body li {
+	margin: 0.2em 0;
+}
+.markdown-body pre {
+	margin: 0.6em 0;
+	border-radius: 0.5rem;
+	overflow-x: auto;
+}
+.markdown-body code {
+	font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+	font-size: 0.85em;
+}
+.markdown-body pre code {
+	display: block;
+	padding: 0.9em 1em;
+}
+.markdown-body :not(pre) > code {
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.15em 0.4em;
+	border-radius: 0.25rem;
+}
+[data-theme='light'] .markdown-body :not(pre) > code {
+	background: rgba(0, 0, 0, 0.06);
+}
+.markdown-body strong {
+	font-weight: 600;
+}
+.markdown-body blockquote {
+	border-left: 3px solid var(--accent-light);
+	padding-left: 1em;
+	margin: 0.5em 0;
+	color: var(--text-secondary);
+}
+.markdown-body a {
+	color: var(--accent-light);
+	text-decoration: underline;
+}
+
+/* Entity badge classes (theme-aware) */
+.entity-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.15rem 0.6rem;
+	border-radius: 9999px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+.entity-info {
+	background: var(--entity-info-bg);
+	color: var(--entity-info-text);
+	box-shadow: inset 0 0 0 1px var(--entity-info-ring);
+}
+.entity-success {
+	background: var(--entity-success-bg);
+	color: var(--entity-success-text);
+	box-shadow: inset 0 0 0 1px var(--entity-success-ring);
+}
+.entity-warning {
+	background: var(--entity-warning-bg);
+	color: var(--entity-warning-text);
+	box-shadow: inset 0 0 0 1px var(--entity-warning-ring);
+}
+.entity-danger {
+	background: var(--entity-danger-bg);
+	color: var(--entity-danger-text);
+	box-shadow: inset 0 0 0 1px var(--entity-danger-ring);
+}
+.entity-purple {
+	background: var(--entity-purple-bg);
+	color: var(--entity-purple-text);
+	box-shadow: inset 0 0 0 1px var(--entity-purple-ring);
 }
