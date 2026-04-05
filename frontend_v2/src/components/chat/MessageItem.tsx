@@ -1,22 +1,5 @@
-import {
-  Check,
-  Copy4,
-  MenuKebab1,
-  Pencil1,
-  RefreshCircle1Clockwise,
-  ShareNodes,
-  ThumbsUp2,
-  Trash1,
-} from "@tailgrids/icons";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../tailgrids/core/dropdown";
+import { Check, Copy4 } from "@tailgrids/icons";
 import { useState } from "react";
-import { THEME } from "./data";
-import { Button } from "../tailgrids/core/button";
 
 export const AIIcon = () => (
   <svg
@@ -90,14 +73,8 @@ interface MessageProps {
   onDelete?: (id: number) => void;
 }
 
-export default function MessageItem({
-  message,
-  onEdit,
-  onDelete,
-}: MessageProps) {
+export default function MessageItem({ message }: MessageProps) {
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(message.content);
 
   const handleCopy = async (id: number, text: string) => {
     try {
@@ -114,7 +91,7 @@ export default function MessageItem({
       <div className="flex flex-col space-y-4">
         <div className="flex items-center gap-2">
           <AIIcon />
-          <span className="text-text-100 text-sm">Tailgrids AI 2.0</span>
+          <span className="text-text-100 text-sm">PIIGhost</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="size-2 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.3s]"></div>
@@ -129,81 +106,10 @@ export default function MessageItem({
     return (
       <div className="flex justify-end">
         <div className="w-full max-w-fit">
-          {isEditing ? (
-            <div className="flex flex-col gap-2">
-              <div className="bg-background-soft-100 rounded-3xl rounded-tr-md p-2">
-                <textarea
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="bg-transparent w-full text-title-50 ring-0 focus:ring-0 text-base focus:outline-none border-0 focus:border-0 outline-none p-3 resize-none min-h-[100px]"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pr-1">
-                <Button
-                  appearance="outline"
-                  className="h-8 text-sm"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditValue(message.content);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="h-8 bg-gray-800 hover:bg-gray-95 text-sm"
-                  onClick={() => {
-                    onEdit?.(message.id, editValue);
-                    setIsEditing(false);
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="bg-background-soft-100 rounded-3xl rounded-tr-md px-5 py-4">
-                <p className="text-title-50 text-base">{message.content}</p>
-              </div>
-              <div className="mt-2.5 flex justify-end gap-1.5">
-                {message.actions.includes("copy") && (
-                  <ActionButton
-                    onClick={() => handleCopy(message.id, message.content)}
-                    label={copiedId === message.id ? "Copied!" : "Copy"}
-                    icon={
-                      copiedId === message.id ? (
-                        <Check className="text-success-500 size-4.5" />
-                      ) : (
-                        <Copy4 className="text-text-100 size-4.5" />
-                      )
-                    }
-                  />
-                )}
-                {message.actions.includes("edit") && (
-                  <ActionButton
-                    onClick={() => setIsEditing(true)}
-                    label="Edit"
-                    icon={<Pencil1 className="text-text-100 size-4" />}
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex items-center gap-2">
-        <AIIcon />
-        <span className="text-text-100 text-sm">Tailgrids AI 2.0</span>
-      </div>
-      <div>
-        <p className="text-title-50 mb-3 leading-relaxed">{message.content}</p>
-        <div className="flex items-center gap-1.5">
-          {message.actions.includes("copy") && (
+          <div className="bg-background-soft-100 rounded-3xl rounded-tr-md px-5 py-4">
+            <p className="text-title-50 text-base">{message.content}</p>
+          </div>
+          <div className="mt-2.5 flex justify-end gap-1.5">
             <ActionButton
               onClick={() => handleCopy(message.id, message.content)}
               label={copiedId === message.id ? "Copied!" : "Copy"}
@@ -215,69 +121,32 @@ export default function MessageItem({
                 )
               }
             />
-          )}
-          {message.actions.includes("regenerate") && (
-            <ActionButton
-              label="Regenerate"
-              icon={
-                <RefreshCircle1Clockwise className="text-text-100 size-5" />
-              }
-            />
-          )}
-          {(message.actions.includes("thumbs_up") ||
-            message.actions.includes("thumbs_down")) && (
-            <div className=" flex   ">
-              {message.actions.includes("thumbs_up") && (
-                <div className="group relative">
-                  <button className="hover:bg-background-soft-100 text-text-100 cursor-pointer rounded-full size-8   flex items-center justify-center transition-colors">
-                    <ThumbsUp2 className="size-4.5" />
-                  </button>
-                  <div className="absolute bottom-full left-1/2 mb-2 h-9 flex items-center justify-center -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 ring-1 ring-white/10 pointer-events-none z-50">
-                    Good response
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-              )}
-              {message.actions.includes("thumbs_down") && (
-                <div className="group relative">
-                  <button className="hover:bg-background-soft-100 text-text-100 cursor-pointer rounded-full size-8   flex items-center justify-center transition-colors">
-                    <ThumbsUp2 className="size-4.5 rotate-180" />
-                  </button>
-                  <div className="absolute bottom-full left-1/2 mb-2 h-9 flex items-center justify-center -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 ring-1 ring-white/10 pointer-events-none z-50">
-                    Bad response
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {message.actions.includes("more") && (
-            <DropdownMenu>
-              <div className="group relative">
-                <DropdownMenuTrigger className="hover:bg-background-soft-100 text-text-100 data-pressed:bg-background-soft-100 flex h-8 w-8 cursor-pointer items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-colors outline-none">
-                  <MenuKebab1 className="size-5" />
-                </DropdownMenuTrigger>
-                <div className="absolute bottom-full left-1/2 mb-2 h-9 flex items-center justify-center -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 ring-1 ring-white/10 pointer-events-none z-50">
-                  More
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-900"></div>
-                </div>
-              </div>
-              <DropdownMenuContent
-                placement="bottom end"
-                className={`${THEME.dropdown} w-40 overflow-visible shadow-md`}
-              >
-                <DropdownMenuItem className={THEME.dropdownItem}>
-                  <ShareNodes className="size-4.5" /> <span>Share</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onAction={() => onDelete?.(message.id)}
-                  className={`${THEME.dropdownItem}`}
-                >
-                  <Trash1 className="size-4.5" /> <span>Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col space-y-4">
+      <div className="flex items-center gap-2">
+        <AIIcon />
+        <span className="text-text-100 text-sm">PIIGhost</span>
+      </div>
+      <div>
+        <p className="text-title-50 mb-3 leading-relaxed">{message.content}</p>
+        <div className="flex items-center gap-1.5">
+          <ActionButton
+            onClick={() => handleCopy(message.id, message.content)}
+            label={copiedId === message.id ? "Copied!" : "Copy"}
+            icon={
+              copiedId === message.id ? (
+                <Check className="text-success-500 size-4.5" />
+              ) : (
+                <Copy4 className="text-text-100 size-4.5" />
+              )
+            }
+          />
         </div>
       </div>
     </div>

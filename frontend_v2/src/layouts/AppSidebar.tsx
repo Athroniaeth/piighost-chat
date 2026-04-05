@@ -1,13 +1,5 @@
-import { useState } from "react";
-import { useTheme } from "../utils/theme-provider";
 import { SidebarHeader } from "../components/sidebar/SidebarHeader";
-import {
-  WorkspaceList,
-  type WorkspaceItem,
-} from "../components/sidebar/WorkspaceList";
 import { ChatHistory, type ChatItem } from "../components/sidebar/ChatHistory";
-import { UserFooter } from "../components/sidebar/UserFooter";
-import CreateProjectModal from "../components/CreateProjectModal";
 
 interface AppSidebarProps {
   isExpanded: boolean;
@@ -18,15 +10,8 @@ interface AppSidebarProps {
   activeChatId: string | null;
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
-  onOpenSearch: () => void;
   onRenameChat: (id: string, currentTitle: string) => void;
-  onRenameProject: (name: string) => void;
   onConfirmDeleteChat: (id: string, title: string) => void;
-  onConfirmDeleteProject: (name: string) => void;
-  onLogout: () => void;
-  onOpenSettings: (
-    tab?: "account" | "preference" | "plan" | "resources",
-  ) => void;
 }
 
 const AppSidebar = ({
@@ -38,77 +23,11 @@ const AppSidebar = ({
   activeChatId,
   onSelectChat,
   onNewChat,
-  onOpenSearch,
   onRenameChat,
-  onRenameProject,
   onConfirmDeleteChat,
-  onConfirmDeleteProject,
-  onLogout,
-  onOpenSettings,
 }: AppSidebarProps) => {
-  const { theme, setTheme } = useTheme();
-  const [expandedWorkspace, setExpandedWorkspace] = useState<string | null>(
-    null,
-  );
-  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
-    useState(false);
-
-  const workspaces: WorkspaceItem[] = [
-    {
-      name: "Pimjo",
-      count: "03",
-      hasSubmenu: true,
-      submenuItems: [
-        { id: "pj-1", title: "Project Overview" },
-        { id: "pj-2", title: "Marketing Assets" },
-        { id: "pj-3", title: "Q1 Strategy" },
-      ],
-    },
-    {
-      name: "Meku",
-      count: "02",
-      hasSubmenu: true,
-      submenuItems: [
-        { id: "mk-2", title: "Sustainable Fashion: Trends and Innovations" },
-      ],
-    },
-    {
-      name: "Formbold",
-      count: "04",
-      hasSubmenu: true,
-      submenuItems: [
-        { id: "fb-1", title: "Form Components" },
-        { id: "fb-2", title: "Landing Page Design" },
-        { id: "fb-3", title: "API Documentation" },
-        { id: "fb-4", title: "Feedback Loop" },
-      ],
-    },
-    {
-      name: "Tailadmin",
-      count: "03",
-      hasSubmenu: true,
-      submenuItems: [
-        { id: "ta-1", title: "Dashboard v2" },
-        { id: "ta-2", title: "User Permissions" },
-        { id: "ta-3", title: "Analytics Integration" },
-      ],
-    },
-  ];
-
-  const toggleWorkspace = (name: string) => {
-    setExpandedWorkspace(expandedWorkspace === name ? null : name);
-  };
-
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded);
-    if (!isExpanded) {
-      setExpandedWorkspace(null);
-    }
-  };
-
-  const handleCreateProject = (name: string) => {
-    console.log("Creating project:", name);
-    // Add logic here if there's a project management system
   };
 
   return (
@@ -130,26 +49,12 @@ const AppSidebar = ({
           isExpanded={isExpanded}
           onToggleSidebar={toggleSidebar}
           onNewChat={onNewChat}
-          onOpenSearch={onOpenSearch}
-          onCreateProject={() => setIsCreateProjectModalOpen(true)}
           onCloseMobile={() => setIsMobileOpen(false)}
         />
 
-        {/* Workspaces & Projects & Chats */}
+        {/* Chats */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className={`space-y-8 ${!isExpanded ? "hidden" : "block"}`}>
-            <WorkspaceList
-              workspaces={workspaces}
-              expandedWorkspace={expandedWorkspace}
-              activeChatId={activeChatId}
-              onToggleWorkspace={toggleWorkspace}
-              onSelectChat={onSelectChat}
-              onRenameChat={onRenameChat}
-              onRenameProject={onRenameProject}
-              onConfirmDeleteChat={onConfirmDeleteChat}
-              onConfirmDeleteProject={onConfirmDeleteProject}
-            />
-
             <ChatHistory
               chats={chats}
               activeChatId={activeChatId}
@@ -158,30 +63,8 @@ const AppSidebar = ({
               onConfirmDeleteChat={onConfirmDeleteChat}
             />
           </div>
-
-          {!isExpanded && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              {/* Add icons for collapsed mode if needed, but currently handled by sub-components or hidden */}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <UserFooter
-            isExpanded={isExpanded}
-            theme={theme}
-            setTheme={setTheme}
-            onLogout={onLogout}
-            onOpenSettings={onOpenSettings}
-          />
         </div>
       </aside>
-
-      <CreateProjectModal
-        isOpen={isCreateProjectModalOpen}
-        onClose={() => setIsCreateProjectModalOpen(false)}
-        onCreate={handleCreateProject}
-      />
     </>
   );
 };
