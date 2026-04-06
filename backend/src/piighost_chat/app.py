@@ -15,6 +15,7 @@ from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.response import ServerSentEvent, ServerSentEventMessage
 from piighost.client import PIIGhostClient
+from piighost.exceptions import CacheMissError
 from piighost.middleware import PIIAnonymizationMiddleware
 
 from piighost_chat.schemas import (
@@ -31,14 +32,14 @@ from piighost_chat.schemas import (
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a helpful assistant. Some inputs may contain anonymized placeholders that replace real values for privacy reasons.
+You are a helpful assistant. Some inputs may contain anonymized placeholders (e.g. <<PERSON_1>>, <<CITY_1>>) that replace real values for privacy reasons.
 
 Rules:
-1. Treat every placeholder as if it were the real value, never comment on its format, never say it is a token, never ask the user to reveal it.
-2. Placeholders can be passed directly to tools use them as-is as input arguments. This preserves the user's privacy while \
-still allowing tools to operate.
-3. If the user asks for a specific detail about a token (e.g. "what is the first letter?"), reply briefly: "I cannot answer that question as the data has been anonymized, so I cannot provide that information."
-Another example is if the user asks "Dans quel pays ce trouve la ville de {city} ?", you can answer "Je suis désolé, mais je ne peux pas répondre à cette question car les données ont été anonymisées, je ne peux donc pas répondre à votre question"
+1. Treat every placeholder as if it were the real value. Never comment on its format, never say it is a token, never ask the user to reveal it.
+2. Always preserve placeholders exactly as-is in your responses, including the << and >> delimiters. Never strip, rename, or rephrase them. A downstream system will transparently restore the original values.
+3. Pass placeholders directly to tool arguments as-is.
+4. Never include raw tool output in your response. Summarize tool results in your own words, keeping any placeholders intact.
+5. If the user asks for a specific detail about a placeholder (e.g. "what is the first letter?"), reply: "I cannot answer that question as the data has been anonymized, so I cannot provide that information."
 """
 
 
@@ -139,14 +140,33 @@ def create_app() -> Litestar:
     async def chat(data: ChatRequest) -> ServerSentEvent:
         config = {"configurable": {"thread_id": data.thread_id}}
 
+        async def _deanon(text: str) -> str:
+            try:
+                out, _ = await pii_client.deanonymize(text, thread_id=data.thread_id)
+                return out
+            except CacheMissError:
+                return await pii_client.deanonymize_with_ent(
+                    text, thread_id=data.thread_id
+                )
+
         async def generate() -> AsyncGenerator[ServerSentEventMessage]:
+            buffer = ""
             async for chunk, metadata in graph.astream(
                 {"messages": [HumanMessage(content=data.message)]},
                 config=config,
                 stream_mode="messages",
             ):
                 if isinstance(chunk, AIMessageChunk) and chunk.content:
-                    yield ServerSentEventMessage(data=chunk.content)
+                    buffer += chunk.content
+                    last_open = buffer.rfind("<<")
+                    if last_open != -1 and ">>" not in buffer[last_open:]:
+                        safe, buffer = buffer[:last_open], buffer[last_open:]
+                    else:
+                        safe, buffer = buffer, ""
+                    if safe:
+                        yield ServerSentEventMessage(data=await _deanon(safe))
+            if buffer:
+                yield ServerSentEventMessage(data=await _deanon(buffer))
 
         return ServerSentEvent(content=generate())
 
@@ -155,13 +175,21 @@ def create_app() -> Litestar:
         config = {"configurable": {"thread_id": thread_id}}
         state = await graph.aget_state(config)
         msgs = state.values.get("messages", [])
-        return MessagesResponse(
-            messages=[
-                MessageSchema(role=m.type, content=m.content)
-                for m in msgs
-                if hasattr(m, "content")
-            ]
-        )
+        messages: list[MessageSchema] = []
+        for m in msgs:
+            if not (hasattr(m, "type") and m.type in ("human", "ai")):
+                continue
+            content = getattr(m, "content", "")
+            if not content:
+                continue
+            try:
+                content, _ = await pii_client.deanonymize(content, thread_id=thread_id)
+            except CacheMissError:
+                content = await pii_client.deanonymize_with_ent(
+                    content, thread_id=thread_id
+                )
+            messages.append(MessageSchema(role=m.type, content=content))
+        return MessagesResponse(messages=messages)
 
     @get("/api/threads")
     async def list_threads() -> ThreadsResponse:
