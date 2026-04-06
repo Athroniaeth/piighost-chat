@@ -84,7 +84,7 @@ export async function* streamChat(
 
     for (const line of lines) {
       if (line.startsWith("data: ")) {
-        yield line.slice(6);
+        yield line.slice(6).replace(/\r$/, "");
       }
     }
   }
