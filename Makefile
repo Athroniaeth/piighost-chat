@@ -9,6 +9,9 @@ test:
 	cd backend && uv run pytest
 
 docker-up:
+	docker compose up -d
+
+docker-build:
 	docker compose up --build -d
 
 docker-down:

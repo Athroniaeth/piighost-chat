@@ -36,7 +36,7 @@ services:
       - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
     depends_on:
       piighost-api:
-        condition: service_healthy
+        condition: service_started
       postgres:
         condition: service_healthy
     healthcheck:
