@@ -31,8 +31,8 @@ export default function PromptBoxScreen({
             Hey, How Can I Assist?
           </h1>
           <p className="text-text-100 text-sm leading-5">
-            AI Chat is our smartest and fastest chatbot — built to give you
-            accurate, helpful answers every time.
+            Your personal data is detected and anonymized before reaching
+            the LLM — your privacy stays protected.
           </p>
         </div>
 
