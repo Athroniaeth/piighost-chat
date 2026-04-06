@@ -103,7 +103,7 @@ export default function ChatInput({
   onValidate,
   onCancelReview,
 }: ChatInputProps) {
-  const [selectedModel, setSelectedModel] = useState("Claude-3.5-sonnet");
+  const [selectedModel, setSelectedModel] = useState("GPT-5.4");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

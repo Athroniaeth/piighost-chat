@@ -88,35 +88,41 @@ export const THEME = {
 export const DATA = {
   MODELS: [
     {
-      id: "gpt-4o",
-      label: "Gpt 4o",
-      value: "GPT-4o",
+      id: "gpt-5.4",
+      label: "GPT-5.4",
+      value: "GPT-5.4",
       icon: <ICONS.Gpt />,
     },
-    {
-      id: "gpt-4o-mini",
-      label: "4o Mini",
-      value: "GPT-4o-mini",
-      icon: <ICONS.Gpt />,
-    },
-    {
-      id: "claude-3-5-sonnet",
-      label: "Claude 3.5",
-      value: "Claude-3.5-sonnet",
-      icon: <ICONS.Claude />,
-    },
-    {
-      id: "gemini-1-5-pro",
-      label: "Gemini Pro",
-      value: "Gemini-1-5-pro",
-      icon: <ICONS.Gemini />,
-    },
-    {
-      id: "gemini-1-5-flash",
-      label: "Gemini Flash",
-      value: "Gemini-1-5-flash",
-      icon: <ICONS.Gemini />,
-    },
+    // {
+    //   id: "gpt-4o",
+    //   label: "Gpt 4o",
+    //   value: "GPT-4o",
+    //   icon: <ICONS.Gpt />,
+    // },
+    // {
+    //   id: "gpt-4o-mini",
+    //   label: "4o Mini",
+    //   value: "GPT-4o-mini",
+    //   icon: <ICONS.Gpt />,
+    // },
+    // {
+    //   id: "claude-3-5-sonnet",
+    //   label: "Claude 3.5",
+    //   value: "Claude-3.5-sonnet",
+    //   icon: <ICONS.Claude />,
+    // },
+    // {
+    //   id: "gemini-1-5-pro",
+    //   label: "Gemini Pro",
+    //   value: "Gemini-1-5-pro",
+    //   icon: <ICONS.Gemini />,
+    // },
+    // {
+    //   id: "gemini-1-5-flash",
+    //   label: "Gemini Flash",
+    //   value: "Gemini-1-5-flash",
+    //   icon: <ICONS.Gemini />,
+    // },
   ],
   TOOLS: [
     {
