@@ -10,6 +10,16 @@ export interface AnonymizeResult {
   entities: Entity[];
 }
 
+export interface Thread {
+  id: string;
+  title: string;
+}
+
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
 export async function anonymize(
   message: string,
   threadId: string,
@@ -21,6 +31,29 @@ export async function anonymize(
   });
   if (!res.ok) throw new Error(`Anonymize failed: ${res.status}`);
   return res.json();
+}
+
+export async function fetchThreads(): Promise<Thread[]> {
+  const res = await fetch(`${BACKEND_URL}/api/threads`);
+  if (!res.ok) throw new Error(`Fetch threads failed: ${res.status}`);
+  const data = await res.json();
+  return data.threads;
+}
+
+export async function fetchMessages(threadId: string): Promise<ChatMessage[]> {
+  const res = await fetch(
+    `${BACKEND_URL}/api/messages?thread_id=${encodeURIComponent(threadId)}`,
+  );
+  if (!res.ok) throw new Error(`Fetch messages failed: ${res.status}`);
+  const data = await res.json();
+  return data.messages;
+}
+
+export async function deleteThread(threadId: string): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/threads/${encodeURIComponent(threadId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Delete thread failed: ${res.status}`);
 }
 
 export async function* streamChat(

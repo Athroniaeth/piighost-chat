@@ -10,7 +10,6 @@ interface AppSidebarProps {
   activeChatId: string | null;
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
-  onRenameChat: (id: string, currentTitle: string) => void;
   onConfirmDeleteChat: (id: string, title: string) => void;
 }
 
@@ -23,7 +22,6 @@ const AppSidebar = ({
   activeChatId,
   onSelectChat,
   onNewChat,
-  onRenameChat,
   onConfirmDeleteChat,
 }: AppSidebarProps) => {
   const toggleSidebar = () => {
@@ -59,7 +57,6 @@ const AppSidebar = ({
               chats={chats}
               activeChatId={activeChatId}
               onSelectChat={onSelectChat}
-              onRenameChat={onRenameChat}
               onConfirmDeleteChat={onConfirmDeleteChat}
             />
           </div>

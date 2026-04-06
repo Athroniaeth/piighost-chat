@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { anonymize, streamChat, type Entity } from "../services/api";
-import RenameChatModal from "../components/RenameChatModal";
+import {
+  anonymize,
+  streamChat,
+  fetchThreads,
+  fetchMessages,
+  deleteThread,
+  type Entity,
+  type Thread,
+} from "../services/api";
 import DeleteMessageModal from "../components/DeleteMessageModal";
 import DeleteChatModal from "../components/DeleteChatModal";
 import PromptBoxScreen from "../components/PromptBoxScreen";
@@ -8,10 +15,11 @@ import ConversationScreen from "../components/ConversationScreen";
 import AppSidebar from "../layouts/AppSidebar";
 import MobileHeader from "../components/MobileHeader";
 
-interface Chat {
-  id: string;
-  title: string;
-  messages: any[];
+interface Message {
+  id: number;
+  type: string;
+  content: string;
+  actions: string[];
 }
 
 export type Status = "idle" | "anonymizing" | "reviewing" | "streaming";
@@ -20,26 +28,51 @@ export default function Home() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  const [chats, setChats] = useState<Chat[]>(() => {
-    const saved = localStorage.getItem("all_chats_v3");
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [pendingEntities, setPendingEntities] = useState<Entity[]>([]);
   const [pendingMessage, setPendingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [renameData, setRenameData] = useState<{
-    id: string;
-    title: string;
-  } | null>(null);
   const [deleteData, setDeleteData] = useState<{
     id: string;
     title: string;
   } | null>(null);
   const [deleteMessageId, setDeleteMessageId] = useState<number | null>(null);
+
+  // Load threads from backend on mount
+  const refreshThreads = useCallback(async () => {
+    try {
+      const data = await fetchThreads();
+      setThreads(data);
+    } catch (err) {
+      console.error("Failed to load threads:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshThreads();
+  }, [refreshThreads]);
+
+  // Load messages from backend when switching chat
+  const loadMessages = useCallback(async (threadId: string) => {
+    try {
+      const data = await fetchMessages(threadId);
+      setMessages(
+        data.map((m, i) => ({
+          id: i,
+          type: m.role === "human" ? "user" : "ai",
+          content: m.content,
+          actions: ["copy"],
+        })),
+      );
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+      setMessages([]);
+    }
+  }, []);
 
   // Clear error after 3 seconds
   useEffect(() => {
@@ -49,12 +82,9 @@ export default function Home() {
     }
   }, [error]);
 
-  // Persist all chats to localStorage
-  useEffect(() => {
-    localStorage.setItem("all_chats_v3", JSON.stringify(chats));
-  }, [chats]);
-
-  const activeChat = chats.find((c) => c.id === activeChatId) || null;
+  const activeChat = activeChatId
+    ? { id: activeChatId, messages }
+    : null;
 
   // Step 1: User submits → call /api/anonymize → show review
   const handleSend = useCallback(
@@ -67,16 +97,10 @@ export default function Home() {
 
       let currentChatId = activeChatId;
 
-      // Create new chat if none active
+      // Create new thread if none active
       if (!currentChatId) {
-        const newChat: Chat = {
-          id: Date.now().toString(),
-          title: content.slice(0, 40) + (content.length > 40 ? "..." : ""),
-          messages: [],
-        };
-        setChats((prev) => [newChat, ...prev]);
-        currentChatId = newChat.id;
-        setActiveChatId(newChat.id);
+        currentChatId = Date.now().toString();
+        setActiveChatId(currentChatId);
       }
 
       setInputValue("");
@@ -106,31 +130,12 @@ export default function Home() {
     const userMessageId = Date.now();
     const aiMessageId = Date.now() + 1;
 
-    // Add user message + empty AI message
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === currentChatId
-          ? {
-              ...c,
-              messages: [
-                ...c.messages,
-                {
-                  id: userMessageId,
-                  type: "user",
-                  content: pendingMessage,
-                  actions: ["copy"],
-                },
-                {
-                  id: aiMessageId,
-                  type: "ai",
-                  content: "",
-                  actions: ["copy"],
-                },
-              ],
-            }
-          : c,
-      ),
-    );
+    // Add user message + empty AI message to local state
+    setMessages((prev) => [
+      ...prev,
+      { id: userMessageId, type: "user", content: pendingMessage, actions: ["copy"] },
+      { id: aiMessageId, type: "ai", content: "", actions: ["copy"] },
+    ]);
 
     const messageToSend = pendingMessage;
     setPendingEntities([]);
@@ -138,18 +143,9 @@ export default function Home() {
 
     try {
       for await (const chunk of streamChat(messageToSend, currentChatId)) {
-        setChats((prev) =>
-          prev.map((c) =>
-            c.id === currentChatId
-              ? {
-                  ...c,
-                  messages: c.messages.map((m) =>
-                    m.id === aiMessageId
-                      ? { ...m, content: m.content + chunk }
-                      : m,
-                  ),
-                }
-              : c,
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId ? { ...m, content: m.content + chunk } : m,
           ),
         );
       }
@@ -158,8 +154,10 @@ export default function Home() {
       setError("Erreur lors de la réponse du LLM.");
     } finally {
       setStatus("idle");
+      // Refresh thread list (new thread appears, or title updates)
+      refreshThreads();
     }
-  }, [activeChatId, pendingMessage]);
+  }, [activeChatId, pendingMessage, refreshThreads]);
 
   // Cancel: restore input, go back to idle
   const handleCancelReview = useCallback(() => {
@@ -169,49 +167,50 @@ export default function Home() {
     setStatus("idle");
   }, [pendingMessage]);
 
-  const handleDeleteChat = (id: string) => {
-    setChats((prev) => prev.filter((c) => c.id !== id));
-    if (activeChatId === id) {
-      setActiveChatId(null);
-    }
-  };
+  const handleDeleteChat = useCallback(
+    async (id: string) => {
+      try {
+        await deleteThread(id);
+      } catch (err) {
+        console.error("Failed to delete thread:", err);
+      }
+      setThreads((prev) => prev.filter((t) => t.id !== id));
+      if (activeChatId === id) {
+        setActiveChatId(null);
+        setMessages([]);
+      }
+    },
+    [activeChatId],
+  );
+
+  const handleSelectChat = useCallback(
+    (id: string) => {
+      setActiveChatId(id);
+      setStatus("idle");
+      setPendingEntities([]);
+      setPendingMessage("");
+      loadMessages(id);
+      if (window.innerWidth < 1024) setIsMobileSidebarOpen(false);
+    },
+    [loadMessages],
+  );
 
   const handleNewChat = () => {
     setActiveChatId(null);
+    setMessages([]);
     setInputValue("");
     setStatus("idle");
     setPendingEntities([]);
+    setPendingMessage("");
   };
 
   const handleDeleteMessage = (id: number) => {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === activeChatId
-          ? { ...chat, messages: chat.messages.filter((m) => m.id !== id) }
-          : chat,
-      ),
-    );
-  };
-
-  const handleRename = (id: string, newTitle: string) => {
-    setChats((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)),
-    );
+    setMessages((prev) => prev.filter((m) => m.id !== id));
   };
 
   const handleEditMessage = (messageId: number, newContent: string) => {
-    setChats((prev) =>
-      prev.map((chat) => {
-        if (chat.id === activeChatId) {
-          return {
-            ...chat,
-            messages: chat.messages.map((m) =>
-              m.id === messageId ? { ...m, content: newContent } : m,
-            ),
-          };
-        }
-        return chat;
-      }),
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, content: newContent } : m)),
     );
   };
 
@@ -228,28 +227,27 @@ export default function Home() {
 
   const isThinking = status === "anonymizing" || status === "streaming";
 
+  // Map threads to ChatItem format for sidebar
+  const sidebarChats = threads.map((t) => ({ id: t.id, title: t.title }));
+
   return (
-    <div className="flex h-screen  overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       <AppSidebar
         isExpanded={isSidebarExpanded}
         setIsExpanded={setIsSidebarExpanded}
         isMobileOpen={isMobileSidebarOpen}
         setIsMobileOpen={setIsMobileSidebarOpen}
-        chats={chats}
+        chats={sidebarChats}
         activeChatId={activeChatId}
-        onSelectChat={(id) => {
-          setActiveChatId(id);
-          if (window.innerWidth < 1024) setIsMobileSidebarOpen(false);
-        }}
+        onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
-        onRenameChat={(id, title) => setRenameData({ id, title })}
         onConfirmDeleteChat={(id, title) => setDeleteData({ id, title })}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <MobileHeader onMenuClick={() => setIsMobileSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-hidden relative  font-lexend">
+        <main className="flex-1 overflow-hidden relative font-lexend">
           {!activeChat ? (
             <PromptBoxScreen
               key="prompt-box"
@@ -281,17 +279,6 @@ export default function Home() {
           )}
         </main>
       </div>
-
-      <RenameChatModal
-        isOpen={!!renameData}
-        onClose={() => setRenameData(null)}
-        currentTitle={renameData?.title || ""}
-        onRename={(newTitle: string) => {
-          if (renameData) {
-            handleRename(renameData.id, newTitle);
-          }
-        }}
-      />
 
       <DeleteChatModal
         isOpen={!!deleteData}

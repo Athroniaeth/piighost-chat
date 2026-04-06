@@ -5,11 +5,12 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import psycopg
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.tools import tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from litestar import Litestar, get, post
+from litestar import Litestar, delete, get, post
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.response import ServerSentEvent, ServerSentEventMessage
@@ -23,6 +24,8 @@ from piighost_chat.schemas import (
     EntitySchema,
     MessageSchema,
     MessagesResponse,
+    ThreadSchema,
+    ThreadsResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -160,14 +163,59 @@ def create_app() -> Litestar:
             ]
         )
 
+    @get("/api/threads")
+    async def list_threads() -> ThreadsResponse:
+        async with await psycopg.AsyncConnection.connect(pg_url) as conn:
+            cursor = await conn.execute(
+                "SELECT DISTINCT thread_id FROM checkpoints WHERE checkpoint_ns = ''"
+            )
+            thread_ids = [row[0] for row in await cursor.fetchall()]
+
+        threads = []
+        for tid in thread_ids:
+            config = {"configurable": {"thread_id": tid}}
+            state = await graph.aget_state(config)
+            msgs = state.values.get("messages", [])
+            first_human = next(
+                (m for m in msgs if hasattr(m, "type") and m.type == "human"),
+                None,
+            )
+            title = first_human.content[:50] if first_human else "Conversation"
+            threads.append(ThreadSchema(id=tid, title=title))
+
+        return ThreadsResponse(threads=threads)
+
+    @delete("/api/threads/{thread_id:str}")
+    async def delete_thread(thread_id: str) -> None:
+        async with await psycopg.AsyncConnection.connect(pg_url) as conn:
+            await conn.execute(
+                "DELETE FROM checkpoint_blobs WHERE thread_id = %s", (thread_id,)
+            )
+            await conn.execute(
+                "DELETE FROM checkpoint_writes WHERE thread_id = %s", (thread_id,)
+            )
+            await conn.execute(
+                "DELETE FROM checkpoints WHERE thread_id = %s", (thread_id,)
+            )
+        return
+
     @get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return Litestar(
-        route_handlers=[anonymize, chat, get_messages, health],
+        route_handlers=[
+            anonymize,
+            chat,
+            get_messages,
+            list_threads,
+            delete_thread,
+            health,
+        ],
         lifespan=[lifespan],
-        cors_config=CORSConfig(allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]),
+        cors_config=CORSConfig(
+            allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+        ),
         openapi_config=OpenAPIConfig(
             title="piighost-chat",
             version="0.1.0",

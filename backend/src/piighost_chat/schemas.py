@@ -30,3 +30,12 @@ class MessageSchema(msgspec.Struct):
 
 class MessagesResponse(msgspec.Struct):
     messages: list[MessageSchema]
+
+
+class ThreadSchema(msgspec.Struct):
+    id: str
+    title: str
+
+
+class ThreadsResponse(msgspec.Struct):
+    threads: list[ThreadSchema]
