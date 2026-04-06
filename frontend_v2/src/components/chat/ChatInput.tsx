@@ -22,20 +22,10 @@ interface ChatInputProps {
   onCancelReview?: () => void;
 }
 
-const ENTITY_STYLES: Record<string, { bg: string; text: string }> = {
-  PERSON: { bg: "#dbeafe", text: "#1e40af" },
-  LOCATION: { bg: "#d1fae5", text: "#065f46" },
-  ORGANIZATION: { bg: "#ede9fe", text: "#5b21b6" },
-  EMAIL: { bg: "#fef3c7", text: "#92400e" },
-  PHONE_NUMBER: { bg: "#ffedd5", text: "#9a3412" },
-  DATE_OF_BIRTH: { bg: "#cffafe", text: "#155e75" },
-  ADDRESS: { bg: "#d1fae5", text: "#065f46" },
-  CREDIT_CARD: { bg: "#fee2e2", text: "#991b1b" },
-  IBAN: { bg: "#fee2e2", text: "#991b1b" },
-  SOCIAL_SECURITY_NUMBER: { bg: "#ffe4e6", text: "#9f1239" },
+const MARK_STYLE = {
+  bg: "var(--color-primary-500)",
+  text: "#ffffff",
 };
-
-const DEFAULT_STYLE = { bg: "#f3f4f6", text: "#374151" };
 
 function buildSegments(
   text: string,
@@ -198,37 +188,30 @@ export default function ChatInput({
             <div className="pl-5 pr-2 pt-5 pb-3 text-title-50 text-base sm:text-lg sm:leading-6 min-h-[70px]">
               {segments.map((seg, i) =>
                 seg.entity ? (
-                  (() => {
-                    const colors = ENTITY_STYLES[seg.entity!.label] ?? DEFAULT_STYLE;
-                    return (
-                      <mark
-                        key={i}
-                        style={{
-                          backgroundColor: colors.bg,
-                          color: colors.text,
-                          borderRadius: "6px",
-                          padding: "2px 6px",
-                          margin: "0 2px",
-                          fontSize: "inherit",
-                          fontWeight: 600,
-                          display: "inline",
-                        }}
-                      >
-                        {seg.text}
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            textTransform: "uppercase",
-                            fontWeight: 500,
-                            opacity: 0.7,
-                            marginLeft: "4px",
-                          }}
-                        >
-                          {seg.entity!.label}
-                        </span>
-                      </mark>
-                    );
-                  })()
+                  <mark
+                    key={i}
+                    style={{
+                      backgroundColor: MARK_STYLE.bg,
+                      color: MARK_STYLE.text,
+                      borderRadius: "6px",
+                      padding: "2px 6px",
+                      margin: "0 2px",
+                      fontSize: "inherit",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {seg.text}
+                    <span
+                      style={{
+                        fontSize: "0.75em",
+                        textTransform: "uppercase",
+                        opacity: 0.85,
+                        marginLeft: "4px",
+                      }}
+                    >
+                      {seg.entity.label}
+                    </span>
+                  </mark>
                 ) : (
                   <span key={i}>{seg.text}</span>
                 ),
