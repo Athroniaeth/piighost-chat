@@ -167,7 +167,8 @@ def create_app() -> Litestar:
     async def list_threads() -> ThreadsResponse:
         async with await psycopg.AsyncConnection.connect(pg_url) as conn:
             cursor = await conn.execute(
-                "SELECT DISTINCT thread_id FROM checkpoints WHERE checkpoint_ns = ''"
+                "SELECT thread_id FROM checkpoints WHERE checkpoint_ns = '' "
+                "GROUP BY thread_id ORDER BY MIN(checkpoint_id)"
             )
             thread_ids = [row[0] for row in await cursor.fetchall()]
 
