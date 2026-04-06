@@ -1,5 +1,28 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8001";
 
+export interface Entity {
+  label: string;
+  original_text: string;
+}
+
+export interface AnonymizeResult {
+  anonymized_text: string;
+  entities: Entity[];
+}
+
+export async function anonymize(
+  message: string,
+  threadId: string,
+): Promise<AnonymizeResult> {
+  const res = await fetch(`${BACKEND_URL}/api/anonymize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, thread_id: threadId }),
+  });
+  if (!res.ok) throw new Error(`Anonymize failed: ${res.status}`);
+  return res.json();
+}
+
 export async function* streamChat(
   message: string,
   threadId: string,

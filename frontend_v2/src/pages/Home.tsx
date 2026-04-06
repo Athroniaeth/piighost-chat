@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { streamChat } from "../services/api";
+import { anonymize, streamChat, type Entity } from "../services/api";
 import RenameChatModal from "../components/RenameChatModal";
 import DeleteMessageModal from "../components/DeleteMessageModal";
 import DeleteChatModal from "../components/DeleteChatModal";
@@ -14,6 +14,8 @@ interface Chat {
   messages: any[];
 }
 
+export type Status = "idle" | "anonymizing" | "reviewing" | "streaming";
+
 export default function Home() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -25,7 +27,9 @@ export default function Home() {
   });
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
+  const [status, setStatus] = useState<Status>("idle");
+  const [pendingEntities, setPendingEntities] = useState<Entity[]>([]);
+  const [pendingMessage, setPendingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [renameData, setRenameData] = useState<{
     id: string;
@@ -52,6 +56,7 @@ export default function Home() {
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
+  // Step 1: User submits → call /api/anonymize → show review
   const handleSend = useCallback(
     async (text?: string) => {
       const content = typeof text === "string" ? text : inputValue;
@@ -74,77 +79,95 @@ export default function Home() {
         setActiveChatId(newChat.id);
       }
 
-      const newMessage = {
-        id: Date.now(),
-        type: "user",
-        content: content,
-        actions: ["copy", "edit"],
-      };
-
-      const aiMessageId = Date.now() + 1;
-
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === currentChatId
-            ? { ...c, messages: [...c.messages, newMessage] }
-            : c,
-        ),
-      );
       setInputValue("");
-      setIsThinking(true);
-
-      // Add empty AI message that will be filled by streaming
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === currentChatId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  {
-                    id: aiMessageId,
-                    type: "ai",
-                    content: "",
-                    actions: [
-                      "copy",
-                      "regenerate",
-                      "thumbs_up",
-                      "thumbs_down",
-                      "more",
-                    ],
-                  },
-                ],
-              }
-            : c,
-        ),
-      );
+      setPendingMessage(content);
+      setStatus("anonymizing");
 
       try {
-        for await (const chunk of streamChat(content, currentChatId)) {
-          setChats((prev) =>
-            prev.map((c) =>
-              c.id === currentChatId
-                ? {
-                    ...c,
-                    messages: c.messages.map((m) =>
-                      m.id === aiMessageId
-                        ? { ...m, content: m.content + chunk }
-                        : m,
-                    ),
-                  }
-                : c,
-            ),
-          );
-        }
+        const result = await anonymize(content, currentChatId);
+        setPendingEntities(result.entities);
+        setStatus("reviewing");
       } catch (err) {
-        console.error("Stream error:", err);
-        setError("Erreur lors de la réponse du LLM.");
-      } finally {
-        setIsThinking(false);
+        console.error("Anonymize error:", err);
+        setError("Erreur lors de l'analyse du message.");
+        setStatus("idle");
       }
     },
     [activeChatId, inputValue],
   );
+
+  // Step 2: User validates → add user message + call /api/chat with streaming
+  const handleValidate = useCallback(async () => {
+    const currentChatId = activeChatId;
+    if (!currentChatId || !pendingMessage) return;
+
+    setStatus("streaming");
+
+    const userMessageId = Date.now();
+    const aiMessageId = Date.now() + 1;
+
+    // Add user message + empty AI message
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === currentChatId
+          ? {
+              ...c,
+              messages: [
+                ...c.messages,
+                {
+                  id: userMessageId,
+                  type: "user",
+                  content: pendingMessage,
+                  actions: ["copy"],
+                },
+                {
+                  id: aiMessageId,
+                  type: "ai",
+                  content: "",
+                  actions: ["copy"],
+                },
+              ],
+            }
+          : c,
+      ),
+    );
+
+    const messageToSend = pendingMessage;
+    setPendingEntities([]);
+    setPendingMessage("");
+
+    try {
+      for await (const chunk of streamChat(messageToSend, currentChatId)) {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === currentChatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === aiMessageId
+                      ? { ...m, content: m.content + chunk }
+                      : m,
+                  ),
+                }
+              : c,
+          ),
+        );
+      }
+    } catch (err) {
+      console.error("Stream error:", err);
+      setError("Erreur lors de la réponse du LLM.");
+    } finally {
+      setStatus("idle");
+    }
+  }, [activeChatId, pendingMessage]);
+
+  // Cancel: restore input, go back to idle
+  const handleCancelReview = useCallback(() => {
+    setInputValue(pendingMessage);
+    setPendingMessage("");
+    setPendingEntities([]);
+    setStatus("idle");
+  }, [pendingMessage]);
 
   const handleDeleteChat = (id: string) => {
     setChats((prev) => prev.filter((c) => c.id !== id));
@@ -156,6 +179,8 @@ export default function Home() {
   const handleNewChat = () => {
     setActiveChatId(null);
     setInputValue("");
+    setStatus("idle");
+    setPendingEntities([]);
   };
 
   const handleDeleteMessage = (id: number) => {
@@ -201,6 +226,8 @@ export default function Home() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const isThinking = status === "anonymizing" || status === "streaming";
+
   return (
     <div className="flex h-screen  overflow-hidden">
       <AppSidebar
@@ -240,6 +267,11 @@ export default function Home() {
               isThinking={isThinking}
               onEditMessage={handleEditMessage}
               onDeleteMessage={(id: number) => setDeleteMessageId(id)}
+              status={status}
+              pendingEntities={pendingEntities}
+              pendingMessage={pendingMessage}
+              onValidate={handleValidate}
+              onCancelReview={handleCancelReview}
             />
           )}
           {error && (

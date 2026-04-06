@@ -53,10 +53,8 @@ const ActionButton = ({
     className={`group relative hover:bg-background-soft-100 text-text-50 cursor-pointer gap-1.5 rounded-full size-8 flex items-center justify-center transition-colors ${className}`}
   >
     {icon}
-    {/* Tooltip */}
     <div className="absolute bottom-full left-1/2 mb-2 h-9 flex items-center justify-center -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 ring-1 ring-white/10 pointer-events-none z-50">
       {label}
-      {/* Arrow */}
       <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-900"></div>
     </div>
   </button>

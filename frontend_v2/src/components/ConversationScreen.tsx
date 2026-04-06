@@ -1,3 +1,5 @@
+import type { Entity } from "../services/api";
+import type { Status } from "../pages/Home";
 import ChatInput from "./chat/ChatInput";
 import MessageItem from "./chat/MessageItem";
 
@@ -9,6 +11,11 @@ interface ConversationScreenProps {
   isThinking?: boolean;
   onEditMessage?: (id: number, content: string) => void;
   onDeleteMessage?: (id: number) => void;
+  status: Status;
+  pendingEntities: Entity[];
+  pendingMessage: string;
+  onValidate: () => void;
+  onCancelReview: () => void;
 }
 
 export default function ConversationScreen({
@@ -19,6 +26,11 @@ export default function ConversationScreen({
   isThinking = false,
   onEditMessage,
   onDeleteMessage,
+  status,
+  pendingEntities,
+  pendingMessage,
+  onValidate,
+  onCancelReview,
 }: ConversationScreenProps) {
   return (
     <div className="bg-background-50 flex h-[calc(100%-1.5rem)] flex-col relative m-3 rounded-xl overflow-hidden text-black-main">
@@ -54,6 +66,11 @@ export default function ConversationScreen({
           inputValue={inputValue}
           setInputValue={setInputValue}
           onSend={onSend}
+          status={status}
+          pendingEntities={pendingEntities}
+          pendingMessage={pendingMessage}
+          onValidate={onValidate}
+          onCancelReview={onCancelReview}
         />
       </div>
     </div>
