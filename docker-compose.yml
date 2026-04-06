@@ -3,6 +3,11 @@ services:
     build: ./frontend_v2
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend_v2/src
+          target: /app/src
     environment:
       - VITE_BACKEND_URL=http://localhost:${BACKEND_PORT:-8001}
     depends_on:
@@ -18,6 +23,11 @@ services:
     build: ./backend
     ports:
       - "${BACKEND_PORT:-8001}:8001"
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
     environment:
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}

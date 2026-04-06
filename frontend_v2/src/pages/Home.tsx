@@ -250,10 +250,14 @@ export default function Home() {
         <main className="flex-1 overflow-hidden relative font-lexend">
           {!activeChat ? (
             <PromptBoxScreen
-              key="prompt-box"
               inputValue={inputValue}
               setInputValue={setInputValue}
               onSend={handleSend}
+              status={status}
+              pendingEntities={pendingEntities}
+              pendingMessage={pendingMessage}
+              onValidate={handleValidate}
+              onCancelReview={handleCancelReview}
             />
           ) : (
             <ConversationScreen

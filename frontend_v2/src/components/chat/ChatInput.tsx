@@ -6,7 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../tailgrids/core/dropdown";
-import { Badge } from "../tailgrids/core/badge";
 import { DATA, THEME, type ConfigItem } from "./data";
 import type { Entity } from "../../services/api";
 import type { Status } from "../../pages/Home";
@@ -23,29 +22,20 @@ interface ChatInputProps {
   onCancelReview?: () => void;
 }
 
-const ENTITY_COLORS: Record<
-  string,
-  | "primary"
-  | "error"
-  | "warning"
-  | "success"
-  | "violet"
-  | "orange"
-  | "cyan"
-  | "rose"
-  | "blue"
-> = {
-  PERSON: "blue",
-  LOCATION: "success",
-  ORGANIZATION: "violet",
-  EMAIL: "warning",
-  PHONE_NUMBER: "orange",
-  DATE_OF_BIRTH: "cyan",
-  ADDRESS: "success",
-  CREDIT_CARD: "error",
-  IBAN: "error",
-  SOCIAL_SECURITY_NUMBER: "rose",
+const ENTITY_STYLES: Record<string, { bg: string; text: string }> = {
+  PERSON: { bg: "#dbeafe", text: "#1e40af" },
+  LOCATION: { bg: "#d1fae5", text: "#065f46" },
+  ORGANIZATION: { bg: "#ede9fe", text: "#5b21b6" },
+  EMAIL: { bg: "#fef3c7", text: "#92400e" },
+  PHONE_NUMBER: { bg: "#ffedd5", text: "#9a3412" },
+  DATE_OF_BIRTH: { bg: "#cffafe", text: "#155e75" },
+  ADDRESS: { bg: "#d1fae5", text: "#065f46" },
+  CREDIT_CARD: { bg: "#fee2e2", text: "#991b1b" },
+  IBAN: { bg: "#fee2e2", text: "#991b1b" },
+  SOCIAL_SECURITY_NUMBER: { bg: "#ffe4e6", text: "#9f1239" },
 };
+
+const DEFAULT_STYLE = { bg: "#f3f4f6", text: "#374151" };
 
 function buildSegments(
   text: string,
@@ -208,17 +198,37 @@ export default function ChatInput({
             <div className="pl-5 pr-2 pt-5 pb-3 text-title-50 text-base sm:text-lg sm:leading-6 min-h-[70px]">
               {segments.map((seg, i) =>
                 seg.entity ? (
-                  <Badge
-                    key={i}
-                    color={ENTITY_COLORS[seg.entity.label] ?? "gray"}
-                    size="md"
-                    className="mx-0.5 align-baseline"
-                  >
-                    {seg.text}
-                    <span className="opacity-50 text-[10px] ml-0.5 uppercase">
-                      {seg.entity.label}
-                    </span>
-                  </Badge>
+                  (() => {
+                    const colors = ENTITY_STYLES[seg.entity!.label] ?? DEFAULT_STYLE;
+                    return (
+                      <mark
+                        key={i}
+                        style={{
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                          borderRadius: "6px",
+                          padding: "2px 6px",
+                          margin: "0 2px",
+                          fontSize: "inherit",
+                          fontWeight: 600,
+                          display: "inline",
+                        }}
+                      >
+                        {seg.text}
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            textTransform: "uppercase",
+                            fontWeight: 500,
+                            opacity: 0.7,
+                            marginLeft: "4px",
+                          }}
+                        >
+                          {seg.entity!.label}
+                        </span>
+                      </mark>
+                    );
+                  })()
                 ) : (
                   <span key={i}>{seg.text}</span>
                 ),

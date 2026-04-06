@@ -1,15 +1,27 @@
+import type { Entity } from "../services/api";
+import type { Status } from "../pages/Home";
 import ChatInput from "./chat/ChatInput";
 
 interface PromptBoxScreenProps {
   inputValue: string;
   setInputValue: (val: string) => void;
   onSend: (text?: string) => void;
+  status: Status;
+  pendingEntities: Entity[];
+  pendingMessage: string;
+  onValidate: () => void;
+  onCancelReview: () => void;
 }
 
 export default function PromptBoxScreen({
   inputValue,
   setInputValue,
   onSend,
+  status,
+  pendingEntities,
+  pendingMessage,
+  onValidate,
+  onCancelReview,
 }: PromptBoxScreenProps) {
   return (
     <div className="bg-background-50 flex h-[calc(100%-1.5rem)] items-center justify-center p-4 lg:p-10 m-3 rounded-xl">
@@ -29,6 +41,11 @@ export default function PromptBoxScreen({
           inputValue={inputValue}
           setInputValue={setInputValue}
           onSend={onSend}
+          status={status}
+          pendingEntities={pendingEntities}
+          pendingMessage={pendingMessage}
+          onValidate={onValidate}
+          onCancelReview={onCancelReview}
         />
       </div>
     </div>
