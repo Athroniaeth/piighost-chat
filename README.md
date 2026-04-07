@@ -8,7 +8,7 @@ A demo chat application that shows how to build a **privacy-preserving AI chatbo
 
 ## What this demonstrates
 
-- **[piighost](https://github.com/Athroniaeth/piighost)** — PII anonymization library with GLiNER2 NER + regex detectors
+- **[piighost](https://github.com/Athroniaeth/piighost)** — PII anonymization library with regex detectors + optional NER (GLiNER2, spaCy, transformers)
   - `PIIAnonymizationMiddleware` wrapping a LangChain agent (anonymize before LLM, deanonymize after)
   - `PIIGhostClient` for calling piighost-api over HTTP
 - **[piighost-api](https://github.com/Athroniaeth/piighost-api)** — REST API server for PII anonymization inference
@@ -21,7 +21,7 @@ A demo chat application that shows how to build a **privacy-preserving AI chatbo
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌───────┐
-│   SvelteKit  │────▶│  Litestar    │────▶│  piighost-api │────▶│ Redis │
+│   React      │────▶│  Litestar    │────▶│  piighost-api │────▶│ Redis │
 │   Frontend   │◀────│  Backend     │◀────│  (ghcr.io)    │◀────│       │
 │   :5173      │     │  :8001       │     │  :8000        │     │ :6379 │
 └─────────────┘     │              │     └───────────────┘     └───────┘
@@ -84,14 +84,15 @@ PIIGHOST_API_KEY=ak_v1-xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### 3. Start with Docker Compose
 
 ```bash
-docker compose up --build
+make docker-build   # first time (builds images)
+make docker-up      # subsequent starts (no rebuild)
 ```
 
 This starts 5 services:
 
 | Service | Port | Description |
 |---------|------|-------------|
-| `frontend` | [localhost:5173](http://localhost:5173) | SvelteKit chat UI |
+| `frontend` | [localhost:5173](http://localhost:5173) | React + Tailwind chat UI |
 | `backend` | [localhost:8001](http://localhost:8001) | Litestar API + LangChain agent |
 | `piighost-api` | 8000 (internal) | PII anonymization inference server |
 | `redis` | 6379 (internal) | Cache for piighost-api |
@@ -109,10 +110,7 @@ You should see "Patrick" and "Paris" highlighted as detected PII entities. Valid
 
 ## Pipeline configuration
 
-The `pipeline.py` file at the project root configures the PII detection pipeline for piighost-api. It combines:
-
-- **GLiNER2** — semantic NER with 30+ PII labels (identity, contact, financial, medical, etc.)
-- **Regex detectors** — pattern-based detection for common (emails, IPs, API keys), EU (IBAN, SSN, phones), and US formats
+The `pipeline.py` file at the project root configures the PII detection pipeline for piighost-api. This project uses GLiNER2 for semantic NER (installed via `EXTRA_PACKAGES=piighost[gliner2]` in compose) combined with regex detectors for common, EU, and US patterns.
 
 Edit this file to add or remove detectors, adjust thresholds, or change labels.
 
@@ -127,17 +125,16 @@ piighost-chat/
 │   │   └── cli.py            # CLI entrypoint
 │   ├── pyproject.toml
 │   └── Dockerfile
-├── frontend/                 # SvelteKit (TypeScript)
+├── frontend/                 # React + Tailwind CSS (TypeScript)
 │   ├── src/
-│   │   ├── routes/+page.svelte
-│   │   └── lib/
-│   │       ├── components/   # ChatMessage, EntityHighlight, ChatInput
-│   │       ├── stores/       # Chat state management
-│   │       └── api.ts        # Backend API client
+│   │   ├── pages/            # Home page
+│   │   ├── components/       # Chat UI components
+│   │   └── services/api.ts   # Backend API client
 │   ├── package.json
 │   └── Dockerfile
 ├── pipeline.py               # PII detection config (mounted in piighost-api)
-├── docker-compose.yml
+├── compose.yml               # App services (frontend + backend)
+├── compose.infra.yml         # Infrastructure (piighost-api, redis, postgres)
 ├── .env.example
 └── Makefile
 ```
