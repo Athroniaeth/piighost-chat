@@ -5,6 +5,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
+      - EXTRA_PACKAGES=piighost[gliner2]
     volumes:
       - ./pipeline.py:/app/pipeline.py
       - huggingface-cache:/root/.cache/huggingface
