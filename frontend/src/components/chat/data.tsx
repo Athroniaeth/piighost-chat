@@ -1,13 +1,3 @@
-import {
-  Code1,
-  Gallery,
-  Globe2,
-  Newspaper,
-  Page,
-  Play,
-  Search1,
-} from "@tailgrids/icons";
-
 export interface ConfigItem {
   id: string | number;
   label: string;
@@ -124,52 +114,22 @@ export const DATA = {
     //   icon: <ICONS.Gemini />,
     // },
   ],
-  TOOLS: [
-    {
-      id: "search",
-      label: "Web Search",
-      value: "web_search",
-      icon: <Globe2 className="size-4" />,
-    },
-    {
-      id: "academic",
-      label: "Academic",
-      value: "academic",
-      icon: <ICONS.GraduationCap />,
-    },
-    {
-      id: "news",
-      label: "News",
-      value: "news",
-      icon: <Page className="size-4" />,
-    },
-    {
-      id: "dev",
-      label: "Developer",
-      value: "developer",
-      icon: <Code1 className="size-4" />,
-    },
-  ],
   QUICK_ACTIONS: [
     {
       id: 1,
-      label: "Deep Search",
-      icon: <Search1 className="text-text-100 size-5" />,
+      label: "Hi, my name is Emma and I live in Paris",
     },
     {
       id: 2,
-      label: "Create Images",
-      icon: <Gallery className="text-text-100 size-5" />,
+      label: "What is the origin of the first name Emma?",
     },
     {
       id: 3,
-      label: "Latest News",
-      icon: <Newspaper className="text-text-100 size-5" />,
+      label: "Give me the weather in Paris",
     },
     {
       id: 4,
-      label: "Generate Video",
-      icon: <Play className="text-text-100 size-5" />,
+      label: "In which country is the city of Paris located?",
     },
   ],
 };

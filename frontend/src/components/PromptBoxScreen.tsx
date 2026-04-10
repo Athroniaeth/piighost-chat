@@ -23,7 +23,6 @@ export default function PromptBoxScreen({
   onValidate,
   onCancelReview,
 }: PromptBoxScreenProps) {
-  // @ts-ignore
   return (
     <div className="bg-background-50 flex h-[calc(100%-1.5rem)] items-center justify-center p-4 lg:p-10 m-3 rounded-xl">
       <div className="mx-auto w-full max-w-3xl">

@@ -305,13 +305,9 @@ export default function ChatInput({
           {DATA.QUICK_ACTIONS.map((action) => (
             <button
               key={action.id}
-              onClick={() => {
-                setInputValue(action.label);
-                textareaRef.current?.focus();
-              }}
+              onClick={() => onSend(action.label)}
               className="border-base-100 hover:bg-background-soft-100 text-text-200 flex items-center gap-2 rounded-full border bg-transparent px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer"
             >
-              {action.icon}
               {action.label}
             </button>
           ))}
