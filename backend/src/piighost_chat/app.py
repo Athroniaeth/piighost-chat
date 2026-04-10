@@ -140,33 +140,14 @@ def create_app() -> Litestar:
     async def chat(data: ChatRequest) -> ServerSentEvent:
         config = {"configurable": {"thread_id": data.thread_id}}
 
-        async def _deanon(text: str) -> str:
-            try:
-                out, _ = await pii_client.deanonymize(text, thread_id=data.thread_id)
-                return out
-            except CacheMissError:
-                return await pii_client.deanonymize_with_ent(
-                    text, thread_id=data.thread_id
-                )
-
         async def generate() -> AsyncGenerator[ServerSentEventMessage]:
-            buffer = ""
             async for chunk, metadata in graph.astream(
                 {"messages": [HumanMessage(content=data.message)]},
                 config=config,
                 stream_mode="messages",
             ):
                 if isinstance(chunk, AIMessageChunk) and chunk.content:
-                    buffer += chunk.content
-                    last_open = buffer.rfind("<<")
-                    if last_open != -1 and ">>" not in buffer[last_open:]:
-                        safe, buffer = buffer[:last_open], buffer[last_open:]
-                    else:
-                        safe, buffer = buffer, ""
-                    if safe:
-                        yield ServerSentEventMessage(data=await _deanon(safe))
-            if buffer:
-                yield ServerSentEventMessage(data=await _deanon(buffer))
+                    yield ServerSentEventMessage(data=chunk.content)
 
         return ServerSentEvent(content=generate())
 

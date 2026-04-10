@@ -154,8 +154,19 @@ export default function Home() {
       setError("Erreur lors de la réponse du LLM.");
     } finally {
       setStatus("idle");
-      // Refresh thread list (new thread appears, or title updates)
-      refreshThreads();
+      // Reload deanonymized messages from backend + refresh thread list
+      const [msgs] = await Promise.all([
+        fetchMessages(currentChatId),
+        refreshThreads(),
+      ]);
+      setMessages(
+        msgs.map((m, i) => ({
+          id: i,
+          type: m.role === "human" ? "user" : "ai",
+          content: m.content,
+          actions: ["copy"],
+        })),
+      );
     }
   }, [activeChatId, pendingMessage, refreshThreads]);
 
