@@ -32,7 +32,7 @@ export default function PromptBoxScreen({
           </h1>
           <p className="text-text-100 text-sm leading-5">
             Your personal data is detected and anonymized before reaching
-            the LLM — your privacy stays protected.
+            the LLM, so your privacy stays protected.
           </p>
         </div>
 

@@ -113,7 +113,7 @@ export default function Home() {
         setStatus("reviewing");
       } catch (err) {
         console.error("Anonymize error:", err);
-        setError("Erreur lors de l'analyse du message.");
+        setError("Failed to analyze the message.");
         setStatus("idle");
       }
     },
@@ -151,7 +151,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Stream error:", err);
-      setError("Erreur lors de la réponse du LLM.");
+      setError("Failed to get the LLM response.");
     } finally {
       setStatus("idle");
       // Reload deanonymized messages from backend + refresh thread list

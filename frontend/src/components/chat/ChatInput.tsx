@@ -166,8 +166,8 @@ export default function ChatInput({
         {isReviewing && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-xl ring-1 ring-white/10">
             {hasEntities
-              ? "Données personnelles détectées — Entrée pour confirmer"
-              : "Aucune PII détectée — Entrée pour envoyer"}
+              ? "Personal data detected, press Enter to confirm"
+              : "No PII detected, press Enter to send"}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-6 border-t-6 border-x-transparent border-t-gray-900"></div>
           </div>
         )}
@@ -245,7 +245,7 @@ export default function ChatInput({
                   onClick={onCancelReview}
                   className="text-text-100 hover:text-title-50 hover:bg-background-soft-100 text-sm font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer"
                 >
-                  Annuler
+                  Cancel
                 </button>
               )}
             </div>
