@@ -21,15 +21,20 @@ A demo chat application that shows how to build a **privacy-preserving AI chatbo
 
 ## Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌───────┐
-│   React      │────▶│  Litestar    │────▶│  piighost-api │────▶│ Redis │
-│   Frontend   │◀────│  Backend     │◀────│  (ghcr.io)    │◀────│       │
-│   :5173      │     │  :8001       │     │  :8000        │     │ :6379 │
-└─────────────┘     │              │     └───────────────┘     └───────┘
-                    │  LangChain   │────▶ OpenAI
-                    │  + Middleware │────▶ PostgreSQL (conversation memory)
-                    └──────────────┘     └────────────┘
+```mermaid
+flowchart LR
+    F["React Frontend<br/>:5173"]
+    B["Litestar Backend<br/>+ LangChain<br/>+ Middleware<br/>:8001"]
+    A["piighost-api<br/>(ghcr.io)<br/>:8000"]
+    R[("Redis<br/>:6379")]
+    P[("PostgreSQL<br/>conversation memory<br/>:5432")]
+    O(("OpenAI"))
+
+    F <--> B
+    B <--> A
+    A <--> R
+    B <--> P
+    B --> O
 ```
 
 ### User flow
