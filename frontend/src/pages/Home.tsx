@@ -203,7 +203,13 @@ export default function Home() {
         })),
       );
     }
-  }, [activeChatId, pendingMessage, refreshThreads]);
+  }, [
+    activeChatId,
+    pendingMessage,
+    pendingDetections,
+    originalDetections,
+    refreshThreads,
+  ]);
 
   // Cancel: restore input, go back to idle
   const handleCancelReview = useCallback(() => {

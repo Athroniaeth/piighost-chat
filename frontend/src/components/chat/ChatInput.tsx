@@ -303,7 +303,7 @@ export default function ChatInput({
         <div
           className={`relative flex flex-col bg-background-50 rounded-3xl shadow-[0px_20px_32px_0px_rgba(17,24,39,0.04)] border transition-[border-color] duration-300 min-h-[120px] ${
             isReviewing
-              ? hasEntities
+              ? hasDetections
                 ? "border-warning-500/40"
                 : "border-success-500/40"
               : isFocused
