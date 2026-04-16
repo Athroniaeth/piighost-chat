@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   anonymize,
+  detect,
+  overrideDetections,
+  fetchLabels,
   streamChat,
   fetchThreads,
   fetchMessages,
   deleteThread,
   type Entity,
+  type DetectionDTO,
   type Thread,
 } from "../services/api";
 import DeleteMessageModal from "../components/DeleteMessageModal";
@@ -34,6 +38,9 @@ export default function Home() {
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [pendingEntities, setPendingEntities] = useState<Entity[]>([]);
+  const [pendingDetections, setPendingDetections] = useState<DetectionDTO[]>([]);
+  const [originalDetections, setOriginalDetections] = useState<DetectionDTO[]>([]);
+  const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [pendingMessage, setPendingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [deleteData, setDeleteData] = useState<{
@@ -86,7 +93,7 @@ export default function Home() {
     ? { id: activeChatId, messages }
     : null;
 
-  // Step 1: User submits → call /api/anonymize → show review
+  // Step 1: User submits → call /api/detect → show review
   const handleSend = useCallback(
     async (text?: string) => {
       const content = typeof text === "string" ? text : inputValue;
@@ -107,12 +114,25 @@ export default function Home() {
       setPendingMessage(content);
       setStatus("anonymizing");
 
+      // Fetch labels in parallel (best-effort)
+      fetchLabels()
+        .then(setAvailableLabels)
+        .catch(() => {});
+
       try {
-        const result = await anonymize(content, currentChatId);
-        setPendingEntities(result.entities);
+        const result = await detect(content, currentChatId);
+        setPendingDetections(result.detections);
+        setOriginalDetections(result.detections);
+        // Build legacy entities for display compatibility
+        setPendingEntities(
+          result.detections.map((d) => ({
+            label: d.label,
+            original_text: d.text,
+          })),
+        );
         setStatus("reviewing");
       } catch (err) {
-        console.error("Anonymize error:", err);
+        console.error("Detect error:", err);
         setError("Failed to analyze the message.");
         setStatus("idle");
       }
@@ -120,10 +140,23 @@ export default function Home() {
     [activeChatId, inputValue],
   );
 
-  // Step 2: User validates → add user message + call /api/chat with streaming
+  // Step 2: User validates → override detections if changed → send to LLM
   const handleValidate = useCallback(async () => {
     const currentChatId = activeChatId;
     if (!currentChatId || !pendingMessage) return;
+
+    // Override detection cache if user made corrections
+    const changed =
+      JSON.stringify(pendingDetections) !== JSON.stringify(originalDetections);
+    if (changed) {
+      try {
+        await overrideDetections(pendingMessage, pendingDetections, currentChatId);
+      } catch (err) {
+        console.error("Override error:", err);
+        setError("Failed to save corrections.");
+        return;
+      }
+    }
 
     setStatus("streaming");
 
@@ -139,6 +172,8 @@ export default function Home() {
 
     const messageToSend = pendingMessage;
     setPendingEntities([]);
+    setPendingDetections([]);
+    setOriginalDetections([]);
     setPendingMessage("");
 
     try {
@@ -175,6 +210,8 @@ export default function Home() {
     setInputValue(pendingMessage);
     setPendingMessage("");
     setPendingEntities([]);
+    setPendingDetections([]);
+    setOriginalDetections([]);
     setStatus("idle");
   }, [pendingMessage]);
 
@@ -212,6 +249,8 @@ export default function Home() {
     setInputValue("");
     setStatus("idle");
     setPendingEntities([]);
+    setPendingDetections([]);
+    setOriginalDetections([]);
     setPendingMessage("");
   };
 
@@ -266,9 +305,33 @@ export default function Home() {
               onSend={handleSend}
               status={status}
               pendingEntities={pendingEntities}
+              pendingDetections={pendingDetections}
+              availableLabels={availableLabels}
               pendingMessage={pendingMessage}
               onValidate={handleValidate}
               onCancelReview={handleCancelReview}
+              onRemoveDetection={(det) => {
+                setPendingDetections((prev) =>
+                  prev.filter(
+                    (d) =>
+                      !(d.start_pos === det.start_pos && d.end_pos === det.end_pos && d.label === det.label),
+                  ),
+                );
+                setPendingEntities((prev) =>
+                  prev.filter(
+                    (e) => !(e.original_text === det.text && e.label === det.label),
+                  ),
+                );
+              }}
+              onAddDetection={(det) => {
+                setPendingDetections((prev) =>
+                  [...prev, det].sort((a, b) => a.start_pos - b.start_pos),
+                );
+                setPendingEntities((prev) => [
+                  ...prev,
+                  { label: det.label, original_text: det.text },
+                ]);
+              }}
             />
           ) : (
             <ConversationScreen
@@ -282,9 +345,33 @@ export default function Home() {
               onDeleteMessage={(id: number) => setDeleteMessageId(id)}
               status={status}
               pendingEntities={pendingEntities}
+              pendingDetections={pendingDetections}
+              availableLabels={availableLabels}
               pendingMessage={pendingMessage}
               onValidate={handleValidate}
               onCancelReview={handleCancelReview}
+              onRemoveDetection={(det) => {
+                setPendingDetections((prev) =>
+                  prev.filter(
+                    (d) =>
+                      !(d.start_pos === det.start_pos && d.end_pos === det.end_pos && d.label === det.label),
+                  ),
+                );
+                setPendingEntities((prev) =>
+                  prev.filter(
+                    (e) => !(e.original_text === det.text && e.label === det.label),
+                  ),
+                );
+              }}
+              onAddDetection={(det) => {
+                setPendingDetections((prev) =>
+                  [...prev, det].sort((a, b) => a.start_pos - b.start_pos),
+                );
+                setPendingEntities((prev) => [
+                  ...prev,
+                  { label: det.label, original_text: det.text },
+                ]);
+              }}
             />
           )}
           {error && (

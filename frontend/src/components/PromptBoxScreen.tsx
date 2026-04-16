@@ -1,4 +1,4 @@
-import type { Entity } from "../services/api";
+import type { Entity, DetectionDTO } from "../services/api";
 import type { Status } from "../pages/Home";
 import ChatInput from "./chat/ChatInput";
 
@@ -8,9 +8,13 @@ interface PromptBoxScreenProps {
   onSend: (text?: string) => void;
   status: Status;
   pendingEntities: Entity[];
+  pendingDetections: DetectionDTO[];
+  availableLabels: string[];
   pendingMessage: string;
   onValidate: () => void;
   onCancelReview: () => void;
+  onRemoveDetection: (det: DetectionDTO) => void;
+  onAddDetection: (det: DetectionDTO) => void;
 }
 
 export default function PromptBoxScreen({
@@ -19,9 +23,13 @@ export default function PromptBoxScreen({
   onSend,
   status,
   pendingEntities,
+  pendingDetections,
+  availableLabels,
   pendingMessage,
   onValidate,
   onCancelReview,
+  onRemoveDetection,
+  onAddDetection,
 }: PromptBoxScreenProps) {
   return (
     <div className="bg-background-50 flex h-[calc(100%-1.5rem)] items-center justify-center p-4 lg:p-10 m-3 rounded-xl">
@@ -43,9 +51,13 @@ export default function PromptBoxScreen({
           onSend={onSend}
           status={status}
           pendingEntities={pendingEntities}
+          pendingDetections={pendingDetections}
+          availableLabels={availableLabels}
           pendingMessage={pendingMessage}
           onValidate={onValidate}
           onCancelReview={onCancelReview}
+          onRemoveDetection={onRemoveDetection}
+          onAddDetection={onAddDetection}
         />
       </div>
     </div>

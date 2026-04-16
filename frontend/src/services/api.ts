@@ -5,6 +5,18 @@ export interface Entity {
   original_text: string;
 }
 
+export interface DetectionDTO {
+  text: string;
+  label: string;
+  start_pos: number;
+  end_pos: number;
+  confidence: number;
+}
+
+export interface DetectResult {
+  detections: DetectionDTO[];
+}
+
 export interface AnonymizeResult {
   anonymized_text: string;
   entities: Entity[];
@@ -54,6 +66,39 @@ export async function deleteThread(threadId: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Delete thread failed: ${res.status}`);
+}
+
+export async function detect(
+  message: string,
+  threadId: string,
+): Promise<DetectResult> {
+  const res = await fetch(`${BACKEND_URL}/api/detect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, thread_id: threadId }),
+  });
+  if (!res.ok) throw new Error(`Detect failed: ${res.status}`);
+  return res.json();
+}
+
+export async function overrideDetections(
+  message: string,
+  detections: DetectionDTO[],
+  threadId: string,
+): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/detect`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, thread_id: threadId, detections }),
+  });
+  if (!res.ok) throw new Error(`Override detections failed: ${res.status}`);
+}
+
+export async function fetchLabels(): Promise<string[]> {
+  const res = await fetch(`${BACKEND_URL}/api/labels`);
+  if (!res.ok) throw new Error(`Fetch labels failed: ${res.status}`);
+  const data = await res.json();
+  return data.labels;
 }
 
 export async function* streamChat(

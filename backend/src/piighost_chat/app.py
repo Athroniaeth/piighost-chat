@@ -10,21 +10,26 @@ from langchain.agents import create_agent
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.tools import tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from litestar import Litestar, delete, get, post
+from litestar import Litestar, delete, get, post, put
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.response import ServerSentEvent, ServerSentEventMessage
 from piighost.client import PIIGhostClient
 from piighost.exceptions import CacheMissError
 from piighost.middleware import PIIAnonymizationMiddleware
+from piighost.models import Detection, Span
 
 from piighost_chat.schemas import (
     AnonymizeRequest,
     AnonymizeResponse,
     ChatRequest,
+    DetectResponse,
+    DetectionSchema,
     EntitySchema,
+    LabelsResponse,
     MessageSchema,
     MessagesResponse,
+    OverrideDetectRequest,
     ThreadSchema,
     ThreadsResponse,
 )
@@ -136,6 +141,44 @@ def create_app() -> Litestar:
             ],
         )
 
+    @post("/api/detect")
+    async def detect(data: AnonymizeRequest) -> DetectResponse:
+        entities = await pii_client.detect(
+            data.message, thread_id=data.thread_id
+        )
+        detections = [
+            DetectionSchema(
+                text=d.text,
+                label=d.label,
+                start_pos=d.position.start_pos,
+                end_pos=d.position.end_pos,
+                confidence=d.confidence,
+            )
+            for e in entities
+            for d in e.detections
+        ]
+        return DetectResponse(detections=detections)
+
+    @put("/api/detect")
+    async def override_detect(data: OverrideDetectRequest) -> None:
+        detections = [
+            Detection(
+                text=d.text,
+                label=d.label,
+                position=Span(d.start_pos, d.end_pos),
+                confidence=d.confidence,
+            )
+            for d in data.detections
+        ]
+        await pii_client.override_detections(
+            data.message, detections, thread_id=data.thread_id
+        )
+
+    @get("/api/labels")
+    async def get_labels() -> LabelsResponse:
+        config = await pii_client.get_config()
+        return LabelsResponse(labels=config.get("labels") or [])
+
     @post("/api/chat")
     async def chat(data: ChatRequest) -> ServerSentEvent:
         config = {"configurable": {"thread_id": data.thread_id}}
@@ -216,6 +259,9 @@ def create_app() -> Litestar:
     return Litestar(
         route_handlers=[
             anonymize,
+            detect,
+            override_detect,
+            get_labels,
             chat,
             get_messages,
             list_threads,

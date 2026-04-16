@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "../tailgrids/core/dropdown";
 import { DATA, THEME, type ConfigItem } from "./data";
-import type { Entity } from "../../services/api";
+import type { Entity, DetectionDTO } from "../../services/api";
 import type { Status } from "../../pages/Home";
 
 interface ChatInputProps {
@@ -17,52 +17,89 @@ interface ChatInputProps {
   variant?: "centered" | "bottom";
   status?: Status;
   pendingEntities?: Entity[];
+  pendingDetections?: DetectionDTO[];
+  availableLabels?: string[];
   pendingMessage?: string;
   onValidate?: () => void;
   onCancelReview?: () => void;
+  onRemoveDetection?: (det: DetectionDTO) => void;
+  onAddDetection?: (det: DetectionDTO) => void;
 }
 
-const MARK_STYLE = {
-  bg: "var(--color-primary-500)",
-  text: "#ffffff",
+const LABEL_COLORS: Record<string, { bg: string; text: string }> = {
+  PERSON: { bg: "#dbeafe", text: "#1e40af" },
+  LOCATION: { bg: "#dcfce7", text: "#166534" },
+  EMAIL: { bg: "#ffedd5", text: "#9a3412" },
+  PHONE: { bg: "#f3e8ff", text: "#6b21a8" },
+  PHONE_INTERNATIONAL: { bg: "#f3e8ff", text: "#6b21a8" },
+  CREDIT_CARD: { bg: "#fee2e2", text: "#991b1b" },
+  URL: { bg: "#cffafe", text: "#155e75" },
+  SSN: { bg: "#fee2e2", text: "#991b1b" },
 };
+const DEFAULT_COLOR = { bg: "var(--color-primary-500)", text: "#ffffff" };
 
-function buildSegments(
+function getLabelColor(label: string) {
+  return LABEL_COLORS[label.toUpperCase()] ?? DEFAULT_COLOR;
+}
+
+interface Segment {
+  text: string;
+  start: number;
+  end: number;
+  detection?: DetectionDTO;
+}
+
+function buildDetectionSegments(
   text: string,
-  entities: Entity[],
-): { text: string; entity?: Entity }[] {
-  if (!entities.length) return [{ text }];
+  detections: DetectionDTO[],
+): Segment[] {
+  if (!detections.length)
+    return [{ text, start: 0, end: text.length }];
 
-  const sorted = [...entities].sort((a, b) => {
-    const ai = text.toLowerCase().indexOf(a.original_text.toLowerCase());
-    const bi = text.toLowerCase().indexOf(b.original_text.toLowerCase());
-    return ai - bi;
-  });
-
-  const segments: { text: string; entity?: Entity }[] = [];
+  const sorted = [...detections].sort(
+    (a, b) => a.start_pos - b.start_pos,
+  );
+  const segments: Segment[] = [];
   let cursor = 0;
 
-  for (const entity of sorted) {
-    const idx = text
-      .toLowerCase()
-      .indexOf(entity.original_text.toLowerCase(), cursor);
-    if (idx === -1) continue;
-
-    if (idx > cursor) {
-      segments.push({ text: text.slice(cursor, idx) });
+  for (const det of sorted) {
+    if (det.start_pos > cursor) {
+      segments.push({
+        text: text.slice(cursor, det.start_pos),
+        start: cursor,
+        end: det.start_pos,
+      });
     }
     segments.push({
-      text: text.slice(idx, idx + entity.original_text.length),
-      entity,
+      text: text.slice(det.start_pos, det.end_pos),
+      start: det.start_pos,
+      end: det.end_pos,
+      detection: det,
     });
-    cursor = idx + entity.original_text.length;
+    cursor = det.end_pos;
   }
 
   if (cursor < text.length) {
-    segments.push({ text: text.slice(cursor) });
+    segments.push({
+      text: text.slice(cursor),
+      start: cursor,
+      end: text.length,
+    });
   }
 
   return segments;
+}
+
+/** Walk up DOM to find nearest span with data-offset attribute. */
+function getSpanWithOffset(node: Node): HTMLElement | null {
+  let cur: Node | null = node;
+  while (cur && cur !== document.body) {
+    if (cur instanceof HTMLElement && cur.dataset.offset !== undefined) {
+      return cur;
+    }
+    cur = cur.parentNode;
+  }
+  return null;
 }
 
 const StyledMenuItem = ({
@@ -99,20 +136,111 @@ export default function ChatInput({
   variant = "centered",
   status = "idle",
   pendingEntities = [],
+  pendingDetections = [],
+  availableLabels = [],
   pendingMessage = "",
   onValidate,
   onCancelReview,
+  onRemoveDetection,
+  onAddDetection,
 }: ChatInputProps) {
   const [selectedModel, setSelectedModel] = useState("GPT-5.4");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const reviewRef = useRef<HTMLDivElement>(null);
+
+  // Label picker state for adding detections via text selection
+  const [pickerPos, setPickerPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedRange, setSelectedRange] = useState<{ start: number; end: number; text: string } | null>(null);
+  const [customLabel, setCustomLabel] = useState("");
 
   const isReviewing = status === "reviewing";
   const isDisabled = status !== "idle" && status !== "reviewing";
-  const hasEntities = pendingEntities.length > 0;
+  const hasDetections = pendingDetections.length > 0;
   const segments = isReviewing
-    ? buildSegments(pendingMessage, pendingEntities)
+    ? buildDetectionSegments(pendingMessage, pendingDetections)
     : [];
+
+  // All known labels: config + currently used
+  const allLabels = [
+    ...new Set([
+      ...availableLabels,
+      ...pendingDetections.map((d) => d.label),
+    ]),
+  ].sort();
+
+  const closePicker = useCallback(() => {
+    setPickerPos(null);
+    setSelectedRange(null);
+    setCustomLabel("");
+    window.getSelection()?.removeAllRanges();
+  }, []);
+
+  const addWithLabel = useCallback(
+    (label: string) => {
+      if (!selectedRange || !onAddDetection) return;
+      onAddDetection({
+        text: selectedRange.text,
+        label,
+        start_pos: selectedRange.start,
+        end_pos: selectedRange.end,
+        confidence: 1.0,
+      });
+      closePicker();
+    },
+    [selectedRange, onAddDetection, closePicker],
+  );
+
+  // Handle text selection in review mode for adding detections
+  const handleMouseUp = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !reviewRef.current) return;
+
+    const range = sel.getRangeAt(0);
+    if (!reviewRef.current.contains(range.commonAncestorContainer)) return;
+
+    const selectedText = sel.toString();
+    if (!selectedText.trim()) return;
+
+    const startSpan = getSpanWithOffset(range.startContainer);
+    const endSpan = getSpanWithOffset(range.endContainer);
+    if (!startSpan || !endSpan) return;
+
+    const absStart = parseInt(startSpan.dataset.offset ?? "0", 10) + range.startOffset;
+    const absEnd = parseInt(endSpan.dataset.offset ?? "0", 10) + range.endOffset;
+    if (absStart >= absEnd) return;
+
+    // Don't allow overlapping with existing detections
+    const overlaps = pendingDetections.some(
+      (d) => d.start_pos < absEnd && absStart < d.end_pos,
+    );
+    if (overlaps) return;
+
+    const rect = range.getBoundingClientRect();
+    const containerRect = reviewRef.current.getBoundingClientRect();
+    setPickerPos({
+      x: rect.left - containerRect.left + rect.width / 2,
+      y: rect.bottom - containerRect.top + 4,
+    });
+    setSelectedRange({
+      start: absStart,
+      end: absEnd,
+      text: pendingMessage.slice(absStart, absEnd),
+    });
+  }, [pendingDetections, pendingMessage]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!pickerPos) return;
+    function handleClick(e: MouseEvent) {
+      const picker = document.getElementById("label-picker");
+      if (picker && !picker.contains(e.target as Node)) {
+        closePicker();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pickerPos, closePicker]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -165,9 +293,9 @@ export default function ChatInput({
         {/* Popup above input during review */}
         {isReviewing && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-xl ring-1 ring-white/10">
-            {hasEntities
-              ? "Personal data detected, press Enter to confirm"
-              : "No PII detected, press Enter to send"}
+            {hasDetections
+              ? "PII detected. Remove with ✕, select text to add. Enter to confirm."
+              : "No PII detected. Select text to add, or press Enter to send."}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-6 border-t-6 border-x-transparent border-t-gray-900"></div>
           </div>
         )}
@@ -184,37 +312,129 @@ export default function ChatInput({
           }`}
         >
           {isReviewing ? (
-            /* Review mode: highlighted text replaces textarea */
-            <div className="pl-5 pr-2 pt-5 pb-3 text-title-50 text-base sm:text-lg sm:leading-6 min-h-[70px]">
-              {segments.map((seg, i) =>
-                seg.entity ? (
-                  <mark
-                    key={i}
-                    style={{
-                      backgroundColor: MARK_STYLE.bg,
-                      color: MARK_STYLE.text,
-                      borderRadius: "6px",
-                      padding: "2px 6px",
-                      margin: "0 2px",
-                      fontSize: "inherit",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {seg.text}
-                    <span
+            /* Review mode: highlighted text with X buttons and text selection */
+            <div
+              ref={reviewRef}
+              onMouseUp={handleMouseUp}
+              className="relative pl-5 pr-2 pt-5 pb-3 text-title-50 text-base sm:text-lg sm:leading-6 min-h-[70px] select-text"
+            >
+              {segments.map((seg, i) => {
+                if (seg.detection) {
+                  const color = getLabelColor(seg.detection.label);
+                  return (
+                    <mark
+                      key={i}
+                      data-offset={seg.start}
                       style={{
-                        fontSize: "0.75em",
-                        textTransform: "uppercase",
-                        opacity: 0.85,
-                        marginLeft: "4px",
+                        backgroundColor: color.bg,
+                        color: color.text,
+                        borderRadius: "6px",
+                        padding: "2px 6px",
+                        margin: "0 2px",
+                        fontSize: "inherit",
+                        fontWeight: 500,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "2px",
                       }}
                     >
-                      {seg.entity.label}
-                    </span>
-                  </mark>
-                ) : (
-                  <span key={i}>{seg.text}</span>
-                ),
+                      <span
+                        style={{
+                          fontSize: "0.65em",
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {seg.detection.label}
+                      </span>
+                      {seg.text}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveDetection?.(seg.detection!);
+                        }}
+                        style={{
+                          marginLeft: "2px",
+                          opacity: 0.6,
+                          cursor: "pointer",
+                          background: "none",
+                          border: "none",
+                          color: "inherit",
+                          padding: "0 1px",
+                          fontSize: "0.8em",
+                          lineHeight: 1,
+                        }}
+                        title={`Remove "${seg.text}" (${seg.detection.label})`}
+                      >
+                        ✕
+                      </button>
+                    </mark>
+                  );
+                }
+                return (
+                  <span key={i} data-offset={seg.start}>
+                    {seg.text}
+                  </span>
+                );
+              })}
+
+              {/* Label picker popover */}
+              {pickerPos && selectedRange && (
+                <div
+                  id="label-picker"
+                  className="absolute z-50 flex flex-col gap-1 rounded-lg border bg-white p-2 shadow-lg"
+                  style={{
+                    left: pickerPos.x,
+                    top: pickerPos.y,
+                    transform: "translateX(-50%)",
+                    minWidth: 180,
+                  }}
+                >
+                  <p className="text-xs text-gray-500 mb-1">
+                    Label for &quot;{selectedRange.text}&quot;
+                  </p>
+                  {allLabels.map((label) => {
+                    const color = getLabelColor(label);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        className="flex items-center gap-2 rounded px-2 py-1 text-left text-xs hover:opacity-80 cursor-pointer"
+                        style={{ backgroundColor: color.bg, color: color.text }}
+                        onClick={() => addWithLabel(label)}
+                      >
+                        + {label}
+                      </button>
+                    );
+                  })}
+                  <div className="flex items-center gap-1 border-t pt-1 mt-1">
+                    <input
+                      type="text"
+                      value={customLabel}
+                      onChange={(e) => setCustomLabel(e.target.value.toUpperCase())}
+                      placeholder="CUSTOM_LABEL"
+                      className="flex-1 rounded border px-1.5 py-0.5 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && customLabel.trim()) {
+                          e.stopPropagation();
+                          addWithLabel(customLabel.trim());
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={!customLabel.trim()}
+                      className="text-green-600 text-xs px-1 cursor-pointer disabled:opacity-30"
+                      onClick={() => {
+                        if (customLabel.trim()) addWithLabel(customLabel.trim());
+                      }}
+                    >
+                      ✓
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ) : (

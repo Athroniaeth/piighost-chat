@@ -1,4 +1,4 @@
-import type { Entity } from "../services/api";
+import type { Entity, DetectionDTO } from "../services/api";
 import type { Status } from "../pages/Home";
 import ChatInput from "./chat/ChatInput";
 import MessageItem from "./chat/MessageItem";
@@ -13,9 +13,13 @@ interface ConversationScreenProps {
   onDeleteMessage?: (id: number) => void;
   status: Status;
   pendingEntities: Entity[];
+  pendingDetections: DetectionDTO[];
+  availableLabels: string[];
   pendingMessage: string;
   onValidate: () => void;
   onCancelReview: () => void;
+  onRemoveDetection: (det: DetectionDTO) => void;
+  onAddDetection: (det: DetectionDTO) => void;
 }
 
 export default function ConversationScreen({
@@ -28,9 +32,13 @@ export default function ConversationScreen({
   onDeleteMessage,
   status,
   pendingEntities,
+  pendingDetections,
+  availableLabels,
   pendingMessage,
   onValidate,
   onCancelReview,
+  onRemoveDetection,
+  onAddDetection,
 }: ConversationScreenProps) {
   return (
     <div className="bg-background-50 flex h-[calc(100%-1.5rem)] flex-col relative m-3 rounded-xl overflow-hidden text-black-main">
@@ -68,9 +76,13 @@ export default function ConversationScreen({
           onSend={onSend}
           status={status}
           pendingEntities={pendingEntities}
+          pendingDetections={pendingDetections}
+          availableLabels={availableLabels}
           pendingMessage={pendingMessage}
           onValidate={onValidate}
           onCancelReview={onCancelReview}
+          onRemoveDetection={onRemoveDetection}
+          onAddDetection={onAddDetection}
         />
       </div>
     </div>
