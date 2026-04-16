@@ -10,10 +10,13 @@ from langchain.agents import create_agent
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.tools import tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from litestar import Litestar, delete, get, post, put
+from litestar import Litestar, Request, delete, get, post, put
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.response import ServerSentEvent, ServerSentEventMessage
+from litestar.exceptions import HTTPException
+from litestar.response import Response
+from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 from piighost.client import PIIGhostClient
 from piighost.exceptions import CacheMissError
 from piighost.middleware import PIIAnonymizationMiddleware
@@ -256,6 +259,29 @@ def create_app() -> Litestar:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    def handle_exception(request: Request, exc: Exception) -> Response:
+        status = (
+            exc.status_code
+            if isinstance(exc, HTTPException)
+            else HTTP_500_INTERNAL_SERVER_ERROR
+        )
+        logger.exception(
+            "Unhandled error on %s %s -> %s: %s",
+            request.method,
+            request.url.path,
+            type(exc).__name__,
+            exc,
+        )
+        return Response(
+            media_type="application/json",
+            status_code=status,
+            content={
+                "status_code": status,
+                "detail": str(exc) or type(exc).__name__,
+                "exception": type(exc).__name__,
+            },
+        )
+
     return Litestar(
         route_handlers=[
             anonymize,
@@ -277,4 +303,5 @@ def create_app() -> Litestar:
             version="0.1.0",
             description="Chat API with PII anonymization.",
         ),
+        exception_handlers={Exception: handle_exception},
     )

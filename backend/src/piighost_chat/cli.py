@@ -1,6 +1,7 @@
 """CLI entrypoint for piighost-chat backend."""
 
 import argparse
+import logging
 
 import uvicorn
 
@@ -11,6 +12,11 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8001, help="Bind port")
     parser.add_argument("--log-level", default="info", help="Log level")
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=args.log_level.upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
 
     uvicorn.run(
         "piighost_chat.app:create_app",
