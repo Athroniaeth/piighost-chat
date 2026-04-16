@@ -32,8 +32,8 @@ class DetectResponse(msgspec.Struct):
 
 class OverrideDetectRequest(msgspec.Struct):
     message: str
-    thread_id: str = "default"
     detections: list[DetectionSchema]
+    thread_id: str = "default"
 
 
 class LabelsResponse(msgspec.Struct):
