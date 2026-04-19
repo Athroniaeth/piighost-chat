@@ -22,6 +22,7 @@ from piighost.exceptions import CacheMissError
 from piighost.middleware import PIIAnonymizationMiddleware
 from piighost.models import Detection, Span
 
+from piighost_chat.utils import delete_thread_data
 from piighost_chat.schemas import (
     AnonymizeRequest,
     AnonymizeResponse,
@@ -244,15 +245,7 @@ def create_app() -> Litestar:
     @delete("/api/threads/{thread_id:str}")
     async def delete_thread(thread_id: str) -> None:
         async with await psycopg.AsyncConnection.connect(pg_url) as conn:
-            await conn.execute(
-                "DELETE FROM checkpoint_blobs WHERE thread_id = %s", (thread_id,)
-            )
-            await conn.execute(
-                "DELETE FROM checkpoint_writes WHERE thread_id = %s", (thread_id,)
-            )
-            await conn.execute(
-                "DELETE FROM checkpoints WHERE thread_id = %s", (thread_id,)
-            )
+            await delete_thread_data(conn, thread_id)
         return
 
     @get("/health")

@@ -47,3 +47,44 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  worker:
+    build: ./backend
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
+    environment:
+      - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
+      - TASKIQ_REDIS_URL=redis://redis:6379/1
+      - THREAD_TTL_HOURS=${THREAD_TTL_HOURS:-1}
+      - CLEANUP_DRY_RUN=${CLEANUP_DRY_RUN:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+      - /app/.venv/bin/taskiq
+      - worker
+      - piighost_chat.worker:broker
+      - piighost_chat.worker
+
+  scheduler:
+    build: ./backend
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
+    environment:
+      - TASKIQ_REDIS_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command:
+      - /app/.venv/bin/taskiq
+      - scheduler
+      - piighost_chat.worker:scheduler
+      - piighost_chat.worker
