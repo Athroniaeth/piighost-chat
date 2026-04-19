@@ -38,11 +38,11 @@ async def cleanup_stale_threads() -> None:
     """Delete LangGraph threads whose latest checkpoint exceeds the TTL.
 
     Configured via:
-    - ``THREAD_TTL_HOURS`` (float, default ``1``): max age before deletion.
+    - ``THREAD_TTL_SECONDS`` (float, default ``3600``): max age before deletion.
     - ``CLEANUP_DRY_RUN`` (bool, default ``false``): log but do not delete.
     - ``DATABASE_URL``: Postgres URL holding the LangGraph tables.
     """
-    ttl_hours = float(os.getenv("THREAD_TTL_HOURS", "1"))
+    ttl_seconds = float(os.getenv("THREAD_TTL_SECONDS", "3600"))
     dry_run = _env_truthy("CLEANUP_DRY_RUN")
     pg_url = os.getenv(
         "DATABASE_URL",
@@ -50,12 +50,12 @@ async def cleanup_stale_threads() -> None:
     )
 
     async with await psycopg.AsyncConnection.connect(pg_url) as conn:
-        stale_ids = await list_stale_thread_ids(conn, ttl_hours)
+        stale_ids = await list_stale_thread_ids(conn, ttl_seconds)
         logger.info(
             "cleanup_stale_threads: %d stale thread(s) "
-            "(ttl=%sh, dry_run=%s)",
+            "(ttl=%ss, dry_run=%s)",
             len(stale_ids),
-            ttl_hours,
+            ttl_seconds,
             dry_run,
         )
         if dry_run or not stale_ids:

@@ -58,7 +58,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
       - TASKIQ_REDIS_URL=redis://redis:6379/1
-      - THREAD_TTL_HOURS=${THREAD_TTL_HOURS:-1}
+      - THREAD_TTL_SECONDS=${THREAD_TTL_SECONDS:-3600}
       - CLEANUP_DRY_RUN=${CLEANUP_DRY_RUN:-false}
     depends_on:
       redis:

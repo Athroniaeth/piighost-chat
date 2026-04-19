@@ -33,9 +33,9 @@ async def delete_thread_data(
     )
 
 
-def _uuid6_cutoff(ttl_hours: float) -> str:
-    """Build the smallest valid UUIDv6 string at ``now - ttl_hours``."""
-    cutoff_ms = int(time.time() * 1000) - int(ttl_hours * 3_600_000)
+def _uuid6_cutoff(ttl_seconds: float) -> str:
+    """Build the smallest valid UUIDv6 string at ``now - ttl_seconds``."""
+    cutoff_ms = int(time.time() * 1000) - int(ttl_seconds * 1000)
     ts_100ns = max(cutoff_ms, 0) * 10_000 + GREGORIAN_EPOCH_100NS
     ts_high = (ts_100ns >> 12) & 0xFFFFFFFFFFFF
     ts_low = ts_100ns & 0xFFF
@@ -44,10 +44,10 @@ def _uuid6_cutoff(ttl_hours: float) -> str:
 
 
 async def list_stale_thread_ids(
-    conn: psycopg.AsyncConnection, ttl_hours: float
+    conn: psycopg.AsyncConnection, ttl_seconds: float
 ) -> list[str]:
-    """Return thread_ids whose latest checkpoint is older than ``ttl_hours``."""
-    cutoff = _uuid6_cutoff(ttl_hours)
+    """Return thread_ids whose latest checkpoint is older than ``ttl_seconds``."""
+    cutoff = _uuid6_cutoff(ttl_seconds)
     cursor = await conn.execute(
         "SELECT thread_id FROM checkpoints "
         "GROUP BY thread_id HAVING MAX(checkpoint_id) < %s",
