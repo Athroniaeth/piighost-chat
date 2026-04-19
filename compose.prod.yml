@@ -1,0 +1,110 @@
+# Production Compose for Coolify deployment.
+#
+# Differences from compose.yml:
+# - No develop.watch (no dev hot-reload).
+# - No host port bindings on internal services; Coolify's reverse proxy
+#   (Traefik) publishes the public-facing ones via SERVICE_FQDN_* magic envs.
+# - restart: unless-stopped everywhere.
+# - Named volumes are kept so Coolify can manage persistence/backups.
+#
+# Public-facing services:
+#   - frontend  (served via SERVICE_FQDN_FRONTEND on port 5173)
+#   - backend   (served via SERVICE_FQDN_BACKEND on port 8001)
+#
+# Env vars to set in Coolify UI:
+#   - OPENAI_API_KEY, PIIGHOST_API_KEY, SECRET_PEPPER   (secrets)
+#   - LLM_MODEL                                         (e.g. openai/gpt-5.4-mini)
+#   - THREAD_TTL_SECONDS, CLEANUP_DRY_RUN               (cleanup worker)
+#   - SERVICE_FQDN_BACKEND, SERVICE_FQDN_FRONTEND       (Coolify auto-sets these)
+
+include:
+  - compose.infra.yml
+
+services:
+  # Override infra services to remove dev-time host port bindings.
+  postgres:
+    ports: !override []
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  piighost-api:
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SECRET_PEPPER=${SECRET_PEPPER:-}
+      - API_KEY_default=${PIIGHOST_API_KEY:-}
+      - EXTRA_PACKAGES=piighost[gliner2]
+      - UV_LINK_MODE=copy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      - VITE_BACKEND_URL=${SERVICE_FQDN_BACKEND:-http://backend:8001}
+    expose:
+      - "5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5173"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - PIIGHOST_API_URL=http://piighost-api:8000
+      - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-openai/gpt-5.4-mini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
+    expose:
+      - "8001"
+    depends_on:
+      piighost-api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
+      - TASKIQ_REDIS_URL=redis://redis:6379/1
+      - THREAD_TTL_SECONDS=${THREAD_TTL_SECONDS:-3600}
+      - CLEANUP_DRY_RUN=${CLEANUP_DRY_RUN:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+      - /app/.venv/bin/taskiq
+      - worker
+      - piighost_chat.worker:broker
+      - piighost_chat.worker
+
+  scheduler:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - TASKIQ_REDIS_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command:
+      - /app/.venv/bin/taskiq
+      - scheduler
+      - piighost_chat.worker:scheduler
+      - piighost_chat.worker
