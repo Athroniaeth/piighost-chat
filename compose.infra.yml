@@ -9,6 +9,7 @@ services:
     volumes:
       - ./pipeline.py:/app/pipeline.py
       - huggingface-cache:/root/.cache/huggingface
+      - uv-cache:/root/.cache/uv
     depends_on:
       redis:
         condition: service_healthy
@@ -48,4 +49,5 @@ services:
 volumes:
   redis-data:
   huggingface-cache:
+  uv-cache:
   postgres-data:
