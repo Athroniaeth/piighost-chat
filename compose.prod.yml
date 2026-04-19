@@ -17,8 +17,8 @@
 # domain is fixed per image. Rebuild on domain change.
 #
 # Env vars to set in Coolify UI:
-#   - OPENAI_API_KEY, PIIGHOST_API_KEY, SECRET_PEPPER   (secrets)
-#   - LLM_MODEL                                         (e.g. openai/gpt-5.4-mini)
+#   - LLM_API_BASE, LLM_API_KEY, LLM_MODEL              (LiteLLM proxy)
+#   - PIIGHOST_API_KEY, SECRET_PEPPER                   (piighost-api secrets)
 #   - THREAD_TTL_SECONDS, CLEANUP_DRY_RUN               (cleanup worker)
 #   - SERVICE_FQDN_BACKEND, SERVICE_FQDN_FRONTEND       (Coolify auto-sets these)
 
@@ -68,9 +68,8 @@ services:
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-openai/gpt-5.4-mini}
-      - LLM_API_BASE=${LLM_API_BASE:-}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LLM_API_BASE=${LLM_API_BASE}
+      - LLM_API_KEY=${LLM_API_KEY}
       - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
     expose:
       - "8001"
