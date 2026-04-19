@@ -67,17 +67,23 @@ async def cleanup_stale_threads() -> None:
         "postgresql://piighost:piighost@postgres:5432/piighost_chat",
     )
 
+    logger.info(
+        "cleanup_stale_threads: running (ttl=%ss, dry_run=%s)",
+        ttl_seconds,
+        dry_run,
+    )
     async with await psycopg.AsyncConnection.connect(pg_url) as conn:
         stale_ids = await list_stale_thread_ids(conn, ttl_seconds)
         logger.info(
-            "cleanup_stale_threads: %d stale thread(s) "
-            "(ttl=%ss, dry_run=%s)",
+            "cleanup_stale_threads: %d stale thread(s) found",
             len(stale_ids),
-            ttl_seconds,
-            dry_run,
         )
         if dry_run or not stale_ids:
             return
         for tid in stale_ids:
             await delete_thread_data(conn, tid)
-        logger.info("cleanup_stale_threads: deleted %d thread(s)", len(stale_ids))
+            logger.info("cleanup_stale_threads: deleted thread %s", tid)
+        logger.info(
+            "cleanup_stale_threads: done, deleted %d thread(s)",
+            len(stale_ids),
+        )
