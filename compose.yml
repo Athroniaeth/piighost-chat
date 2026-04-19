@@ -35,7 +35,9 @@ services:
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-openai/gpt-5.4-mini}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_API_BASE=${LLM_API_BASE:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DATABASE_URL=postgresql://piighost:piighost@postgres:5432/piighost_chat
     depends_on:
       piighost-api:

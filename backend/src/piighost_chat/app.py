@@ -97,6 +97,8 @@ def create_app() -> Litestar:
     piighost_url = os.getenv("PIIGHOST_API_URL", "http://piighost-api:8000")
     piighost_key = os.getenv("PIIGHOST_API_KEY", "")
     llm_model = os.getenv("LLM_MODEL", "openai/gpt-5.4-mini")
+    llm_api_base = os.getenv("LLM_API_BASE") or None
+    llm_api_key = os.getenv("LLM_API_KEY") or None
     pg_url = os.getenv(
         "DATABASE_URL",
         "postgresql://piighost:piighost@postgres:5432/piighost_chat",
@@ -116,7 +118,11 @@ def create_app() -> Litestar:
             await checkpointer.setup()
 
             graph = create_agent(
-                model=ChatLiteLLM(model=llm_model),
+                model=ChatLiteLLM(
+                    model=llm_model,
+                    api_base=llm_api_base,
+                    api_key=llm_api_key,
+                ),
                 system_prompt=SYSTEM_PROMPT,
                 tools=[send_email, get_weather],
                 middleware=[middleware],
