@@ -13,7 +13,7 @@ import type { Status } from "../../pages/Home";
 interface ChatInputProps {
   inputValue: string;
   setInputValue: (val: string) => void;
-  onSend: () => void;
+  onSend: (text?: string) => void;
   variant?: "centered" | "bottom";
   status?: Status;
   pendingEntities?: Entity[];
@@ -135,7 +135,6 @@ export default function ChatInput({
   onSend,
   variant = "centered",
   status = "idle",
-  pendingEntities = [],
   pendingDetections = [],
   availableLabels = [],
   pendingMessage = "",
@@ -501,7 +500,7 @@ export default function ChatInput({
               )}
 
               <button
-                onClick={isReviewing ? onValidate : onSend}
+                onClick={() => (isReviewing ? onValidate?.() : onSend())}
                 disabled={
                   !isReviewing && (isDisabled || !inputValue.trim())
                 }
