@@ -108,6 +108,7 @@ services:
     restart: unless-stopped
     environment:
       - TASKIQ_REDIS_URL=redis://redis:6379/1
+      - THREAD_TTL_SECONDS=${THREAD_TTL_SECONDS:-3600}
     depends_on:
       redis:
         condition: service_healthy
