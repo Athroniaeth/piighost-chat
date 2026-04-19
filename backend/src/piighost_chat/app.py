@@ -9,6 +9,7 @@ import psycopg
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.tools import tool
+from langchain_litellm import ChatLiteLLM
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from litestar import Litestar, Request, delete, get, post, put
 from litestar.config.cors import CORSConfig
@@ -95,7 +96,7 @@ def create_app() -> Litestar:
     """Create and configure the Litestar application."""
     piighost_url = os.getenv("PIIGHOST_API_URL", "http://piighost-api:8000")
     piighost_key = os.getenv("PIIGHOST_API_KEY", "")
-    llm_model = os.getenv("LLM_MODEL", "openai:gpt-5.4-mini")
+    llm_model = os.getenv("LLM_MODEL", "openai/gpt-5.4-mini")
     pg_url = os.getenv(
         "DATABASE_URL",
         "postgresql://piighost:piighost@postgres:5432/piighost_chat",
@@ -115,7 +116,7 @@ def create_app() -> Litestar:
             await checkpointer.setup()
 
             graph = create_agent(
-                model=llm_model,
+                model=ChatLiteLLM(model=llm_model),
                 system_prompt=SYSTEM_PROMPT,
                 tools=[send_email, get_weather],
                 middleware=[middleware],
