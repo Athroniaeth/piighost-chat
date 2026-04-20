@@ -1,5 +1,8 @@
 # Production Compose for Coolify deployment.
 #
+# Self-contained (no `include:` — Coolify does not resolve compose includes,
+# see coollabsio/coolify#5921). All services are declared inline here.
+#
 # Differences from compose.yml:
 # - No develop.watch (no dev hot-reload).
 # - No host port bindings on internal services; Coolify's reverse proxy
@@ -8,36 +11,53 @@
 # - Named volumes are kept so Coolify can manage persistence/backups.
 #
 # Public-facing services:
-#   - frontend  (nginx on port 80, served via SERVICE_FQDN_FRONTEND)
-#   - backend   (Litestar on port 8001, served via SERVICE_FQDN_BACKEND)
+#   - frontend  (nginx on port 80, served via SERVICE_FQDN_FRONTEND_80)
+#   - backend   (Litestar on port 8001, served via SERVICE_FQDN_BACKEND_8001)
 #
 # The frontend image is a multi-stage build (Dockerfile.prod) that compiles
 # Vite once and serves the static bundle with nginx — no dev server in prod.
-# VITE_BACKEND_URL is baked at build time from SERVICE_FQDN_BACKEND, so the
-# domain is fixed per image. Rebuild on domain change.
+# VITE_BACKEND_URL is baked at build time from SERVICE_URL_BACKEND (full URL
+# with scheme, no port), so the domain is fixed per image. Rebuild on domain
+# change.
 #
 # Env vars to set in Coolify UI:
 #   - LLM_API_BASE, LLM_API_KEY, LLM_MODEL              (LiteLLM proxy)
 #   - PIIGHOST_API_KEY, SECRET_PEPPER                   (piighost-api secrets)
 #   - THREAD_TTL_SECONDS, CLEANUP_DRY_RUN               (cleanup worker)
 #
-# SERVICE_FQDN_FRONTEND_80 and SERVICE_FQDN_BACKEND_8001 are Coolify
-# magic vars: declared empty in each service, Coolify prompts for a
-# domain in the UI and populates them at deploy time.
-
-include:
-  - compose.infra.yml
+# SERVICE_FQDN_FRONTEND_80 and SERVICE_FQDN_BACKEND_8001 are Coolify magic
+# vars: declared empty in each service, Coolify prompts for a domain in the
+# UI and populates them (plus SERVICE_URL_* companions) at deploy time.
 
 services:
-  # Override infra services to remove dev-time host port bindings.
   postgres:
-    ports: !override []
+    image: postgres:17-alpine
     restart: unless-stopped
+    environment:
+      - POSTGRES_USER=piighost
+      - POSTGRES_PASSWORD=piighost
+      - POSTGRES_DB=piighost_chat
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U piighost -d piighost_chat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
+    image: redis:7-alpine
     restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   piighost-api:
+    image: ghcr.io/athroniaeth/piighost-api:latest
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379
@@ -45,13 +65,26 @@ services:
       - API_KEY_default=${PIIGHOST_API_KEY:-}
       - EXTRA_PACKAGES=piighost[gliner2]
       - UV_LINK_MODE=copy
+    volumes:
+      - ./pipeline.py:/app/pipeline.py
+      - huggingface-cache:/root/.cache/huggingface
+      - uv-cache:/root/.cache/uv
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_BACKEND_URL: ${SERVICE_FQDN_BACKEND_8001:-http://backend:8001}
+        VITE_BACKEND_URL: ${SERVICE_URL_BACKEND:-http://backend:8001}
     restart: unless-stopped
     environment:
       - SERVICE_FQDN_FRONTEND_80
@@ -123,3 +156,9 @@ services:
       - scheduler
       - piighost_chat.worker:scheduler
       - piighost_chat.worker
+
+volumes:
+  postgres-data:
+  redis-data:
+  huggingface-cache:
+  uv-cache:
