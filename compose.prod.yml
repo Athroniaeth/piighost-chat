@@ -20,7 +20,10 @@
 #   - LLM_API_BASE, LLM_API_KEY, LLM_MODEL              (LiteLLM proxy)
 #   - PIIGHOST_API_KEY, SECRET_PEPPER                   (piighost-api secrets)
 #   - THREAD_TTL_SECONDS, CLEANUP_DRY_RUN               (cleanup worker)
-#   - SERVICE_FQDN_BACKEND, SERVICE_FQDN_FRONTEND       (Coolify auto-sets these)
+#
+# SERVICE_FQDN_FRONTEND_80 and SERVICE_FQDN_BACKEND_8001 are Coolify
+# magic vars: declared empty in each service, Coolify prompts for a
+# domain in the UI and populates them at deploy time.
 
 include:
   - compose.infra.yml
@@ -48,10 +51,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_BACKEND_URL: ${SERVICE_FQDN_BACKEND:-http://backend:8001}
+        VITE_BACKEND_URL: ${SERVICE_FQDN_BACKEND_8001:-http://backend:8001}
     restart: unless-stopped
     environment:
-      - SERVICE_FQDN_FRONTEND=/
+      - SERVICE_FQDN_FRONTEND_80
     expose:
       - "80"
     depends_on:
@@ -67,7 +70,7 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      - SERVICE_FQDN_BACKEND=/
+      - SERVICE_FQDN_BACKEND_8001
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-openai/gpt-5.4-mini}
