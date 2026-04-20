@@ -1,0 +1,3 @@
+FROM ghcr.io/athroniaeth/piighost-api:latest
+
+COPY pipeline.py /app/pipeline.py

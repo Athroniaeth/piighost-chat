@@ -57,7 +57,9 @@ services:
       retries: 10
 
   piighost-api:
-    image: ghcr.io/athroniaeth/piighost-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.piighost-api
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379
@@ -66,7 +68,6 @@ services:
       - EXTRA_PACKAGES=piighost[gliner2]
       - UV_LINK_MODE=copy
     volumes:
-      - ./pipeline.py:/app/pipeline.py
       - huggingface-cache:/root/.cache/huggingface
       - uv-cache:/root/.cache/uv
     depends_on:
