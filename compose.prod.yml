@@ -84,7 +84,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_BACKEND_URL: ${SERVICE_URL_BACKEND:-http://backend:8001}
+        - VITE_BACKEND_URL=${SERVICE_URL_BACKEND:-http://backend:8001}
     restart: unless-stopped
     environment:
       - SERVICE_FQDN_FRONTEND_80
