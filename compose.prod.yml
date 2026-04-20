@@ -50,6 +50,8 @@ services:
       args:
         VITE_BACKEND_URL: ${SERVICE_FQDN_BACKEND:-http://backend:8001}
     restart: unless-stopped
+    environment:
+      - SERVICE_FQDN_FRONTEND=/
     expose:
       - "80"
     depends_on:
@@ -65,6 +67,7 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
+      - SERVICE_FQDN_BACKEND=/
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-openai/gpt-5.4-mini}
