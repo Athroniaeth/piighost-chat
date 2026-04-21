@@ -6,7 +6,7 @@
 
 A demo chat application that shows how to build a **privacy-preserving AI chatbot** using [piighost](https://github.com/Athroniaeth/piighost) and [piighost-api](https://github.com/Athroniaeth/piighost-api). User messages are anonymized before reaching the LLM — personal information is replaced with placeholders, and responses are deanonymized transparently.
 
-![Demo](docs/demo.gif)
+![Illustration of how use application](docs/demo_v2.gif)
 
 ## What this demonstrates
 
