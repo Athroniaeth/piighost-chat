@@ -23,6 +23,8 @@ from piighost.exceptions import CacheMissError
 from piighost.middleware import PIIAnonymizationMiddleware
 from piighost.models import Detection, Span
 
+from langchain_core.callbacks import BaseCallbackHandler
+
 from piighost_chat.utils import delete_thread_data
 from piighost_chat.schemas import (
     AnonymizeRequest,
@@ -88,6 +90,27 @@ def get_weather(country_or_city: str) -> str:
 
 
 # ------------------------------------------------------------------
+# Observation
+# ------------------------------------------------------------------
+
+
+def _create_langfuse_handler() -> BaseCallbackHandler | None:
+    """Build a Langfuse LangChain handler when credentials are present.
+
+    Returns ``None`` (so the agent runs without tracing) unless
+    ``LANGFUSE_PUBLIC_KEY`` is set in the environment. The Langfuse SDK
+    reads its own ``LANGFUSE_SECRET_KEY`` / ``LANGFUSE_BASE_URL`` env
+    vars so the credential triplet stays standard.
+    """
+    if not os.getenv("LANGFUSE_PUBLIC_KEY"):
+        return None
+
+    from langfuse.langchain import CallbackHandler
+
+    return CallbackHandler()
+
+
+# ------------------------------------------------------------------
 # Application factory
 # ------------------------------------------------------------------
 
@@ -106,6 +129,10 @@ def create_app() -> Litestar:
 
     pii_client = PIIGhostClient(piighost_url, api_key=piighost_key)
     middleware = PIIAnonymizationMiddleware(pipeline=pii_client)
+
+    langfuse_handler = _create_langfuse_handler()
+    if langfuse_handler is not None:
+        logger.info("Langfuse tracing enabled for the LangChain agent")
 
     graph = None
 
@@ -192,7 +219,9 @@ def create_app() -> Litestar:
 
     @post("/api/chat")
     async def chat(data: ChatRequest) -> ServerSentEvent:
-        config = {"configurable": {"thread_id": data.thread_id}}
+        config: dict = {"configurable": {"thread_id": data.thread_id}}
+        if langfuse_handler is not None:
+            config["callbacks"] = [langfuse_handler]
 
         async def generate() -> AsyncGenerator[ServerSentEventMessage]:
             async for chunk, metadata in graph.astream(
