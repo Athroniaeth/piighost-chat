@@ -1,4 +1,4 @@
-.PHONY: lint test docker-up docker-build docker-down install install-pypi
+.PHONY: lint test docker-up docker-build docker-down install install-pypi hooks
 
 lint:
 	-cd backend && uv run ruff format .
@@ -19,6 +19,12 @@ install:
 # lockfile, or to reproduce the production install on the host.
 install-pypi:
 	cd backend && uv sync --no-sources
+
+# Install the prek-managed git hook that blocks a commit when
+# backend/uv.lock records piighost as a local editable source. Requires
+# prek on PATH (`uv tool install prek`).
+hooks:
+	prek install
 
 docker-up:
 	docker compose up -d
