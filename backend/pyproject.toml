@@ -24,6 +24,12 @@ dependencies = [
     "langfuse>=3.0",
 ]
 
+[tool.uv.sources]
+# Local-dev override: when the sibling ../../piighost checkout exists,
+# uv installs piighost editable from there. Production / CI / Docker
+# builds pass `--no-sources` to ignore this and pull piighost from PyPI.
+piighost = { path = "../../piighost", editable = true }
+
 [project.scripts]
 piighost-chat = "piighost_chat.cli:main"
 

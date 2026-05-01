@@ -1573,14 +1573,14 @@ wheels = [
 
 [[package]]
 name = "piighost"
-version = "0.9.1"
+version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/47/6859616a1a38fa80f7dfc9b0b8dfe149da08a6ea7d7fea03c7862f7f3c10/piighost-0.9.1.tar.gz", hash = "sha256:b4a972144378927c7add41f16625b02e7195c7f0c803869bf0b0b502bfb0cfb7", size = 713103, upload-time = "2026-04-25T22:28:17.903Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/9c/7ba5a36a222984d8d41ff4ffe4271b8dbc0d0989b3f6a847fce8b7733f9e/piighost-0.10.0.tar.gz", hash = "sha256:fda85d05d7294562a1923cae444130e8faf621f0d272f038ec2f67a70d321ac9", size = 895314, upload-time = "2026-04-30T20:37:48.423Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/bd/090eb87ce1140c522af0153c953a137c5ee12c9a6d679fb39020941ac0c1/piighost-0.9.1-py3-none-any.whl", hash = "sha256:52030565e50448ec749324cdb3c818827b3c7e0047f94d5ee6d68cf661234cff", size = 69086, upload-time = "2026-04-25T22:28:19.001Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/c1/0f1ea69805e1dc237b02c91807fa592a5f0d30cae13fe5d961b0602175ef/piighost-0.10.0-py3-none-any.whl", hash = "sha256:0a8a200273b3672332edd6d6e81b109fa542a7a44418a6f6ccdc2d93b2754d99", size = 90713, upload-time = "2026-04-30T20:37:47.326Z" },
 ]
 
 [package.optional-dependencies]

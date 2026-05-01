@@ -5,10 +5,13 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock* README.md* ./
-RUN uv sync --frozen --no-dev --no-progress || uv sync --no-dev --no-progress
+# --no-sources ignores the local-dev path override in pyproject.toml
+# (which points piighost at ../../piighost during host development) and
+# pulls piighost from PyPI inside the image.
+RUN uv sync --frozen --no-dev --no-progress --no-sources || uv sync --no-dev --no-progress --no-sources
 
 COPY src src
-RUN uv sync --frozen --no-dev --no-progress
+RUN uv sync --frozen --no-dev --no-progress --no-sources
 
 ENV PIIGHOST_API_URL=http://piighost-api:8000
 ENV LLM_MODEL=gpt-5.4-mini
