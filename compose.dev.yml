@@ -1,0 +1,22 @@
+# Dev overlay: mount the sibling ../piighost checkout into the piighost-api
+# container so the running pipeline picks up in-flight library changes
+# (e.g. unreleased features like the HITL Langfuse trace) without bumping
+# the published version. The base compose still pulls the GHCR image; the
+# entrypoint then runs `uv pip install -e /srv/piighost[gliner2,langfuse]`
+# at startup, which replaces the wheel install with the live source.
+#
+# Usage:
+#   docker compose -f compose.yml -f compose.dev.yml up -d
+# or via the Makefile:
+#   make docker-up-local
+#
+# Mount is read-only: editable install only writes a .pth file inside the
+# container venv, never into the source tree.
+services:
+  piighost-api:
+    volumes:
+      - ../piighost:/srv/piighost:ro
+    environment:
+      # Replaces the upstream "piighost[gliner2,langfuse]" PyPI install
+      # with an editable install of the local checkout.
+      EXTRA_PACKAGES: "-e /srv/piighost[gliner2,langfuse]"

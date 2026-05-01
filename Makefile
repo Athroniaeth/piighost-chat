@@ -1,4 +1,4 @@
-.PHONY: lint test docker-up docker-build docker-down install install-pypi hooks
+.PHONY: lint test docker-up docker-up-local docker-build docker-down install install-pypi hooks
 
 lint:
 	-cd backend && uv run ruff format .
@@ -28,6 +28,12 @@ hooks:
 
 docker-up:
 	docker compose up -d
+
+# Same as docker-up but mounts ../piighost into the piighost-api container
+# and re-installs piighost editable at boot, so unreleased library changes
+# (e.g. on master) are exercised end-to-end without bumping a version.
+docker-up-local:
+	docker compose -f compose.yml -f compose.dev.yml up -d
 
 docker-build:
 	docker compose up --build -d
