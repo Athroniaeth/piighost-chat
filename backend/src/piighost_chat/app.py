@@ -181,9 +181,7 @@ def create_app() -> Litestar:
 
     @post("/api/detect")
     async def detect(data: AnonymizeRequest) -> DetectResponse:
-        entities = await pii_client.detect(
-            data.message, thread_id=data.thread_id
-        )
+        entities = await pii_client.detect(data.message, thread_id=data.thread_id)
         detections = [
             DetectionSchema(
                 text=d.text,

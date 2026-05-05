@@ -18,9 +18,7 @@ import psycopg
 GREGORIAN_EPOCH_100NS = 0x01B21DD213814000
 
 
-async def delete_thread_data(
-    conn: psycopg.AsyncConnection, thread_id: str
-) -> None:
+async def delete_thread_data(conn: psycopg.AsyncConnection, thread_id: str) -> None:
     """Delete every LangGraph checkpoint row for a given thread."""
     await conn.execute(
         "DELETE FROM checkpoint_blobs WHERE thread_id = %s", (thread_id,)
@@ -28,9 +26,7 @@ async def delete_thread_data(
     await conn.execute(
         "DELETE FROM checkpoint_writes WHERE thread_id = %s", (thread_id,)
     )
-    await conn.execute(
-        "DELETE FROM checkpoints WHERE thread_id = %s", (thread_id,)
-    )
+    await conn.execute("DELETE FROM checkpoints WHERE thread_id = %s", (thread_id,))
 
 
 def _uuid6_cutoff(ttl_seconds: float) -> str:
