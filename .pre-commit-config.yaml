@@ -4,12 +4,19 @@ repos:
   - repo: local
     hooks:
       - id: piighost-lock-pypi-mode
-        name: backend/uv.lock has piighost from PyPI (run `make install-pypi`)
-        # `uv lock --locked --no-sources` resolves the lockfile while
-        # ignoring the [tool.uv.sources] path override. If the current
-        # lockfile records piighost as an editable file:// source, the
-        # check exits non-zero and the commit is blocked.
-        entry: bash -c 'cd backend && uv lock --locked --no-sources'
+        name: auto-flip backend/uv.lock to PyPI mode (re-stages if changed)
+        # Auto-fix mode: regenerate the backend lockfile with
+        # --no-sources so any editable file:// piighost source is
+        # replaced by the PyPI registry equivalent, then re-stage.
+        # The commit always lands a PyPI-mode lockfile regardless of
+        # the developer's local state (the chat backend's pyproject
+        # keeps an editable path source as the dev default, so a fresh
+        # ``make install`` always flips the lock). This used to be a
+        # check-only hook that exit 1 and blocked the commit; in that
+        # mode prek's stash/restore around the failing hook
+        # occasionally lost unstaged modifs in
+        # ~/.cache/prek/patches/. Auto-fix avoids the failure path.
+        entry: bash -c 'cd backend && uv lock --no-sources --quiet && git add uv.lock'
         language: system
         files: ^backend/(uv\.lock|pyproject\.toml)$
         pass_filenames: false
