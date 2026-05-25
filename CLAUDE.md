@@ -77,6 +77,33 @@ make docker-up       # Start all services
 make docker-down     # Stop all services
 ```
 
+## Pipeline configuration (TOML)
+
+The piighost-api service consumes a declarative TOML configuration mounted
+into the container at `/app/pipeline.toml`. The source of truth is
+`pipeline.toml` at the repo root (mounted via `compose.infra.yml`). The
+legacy `pipeline.py` module-variable loader has been removed.
+
+To validate the TOML locally without booting the stack:
+
+```bash
+uv run --no-sync piighost validate pipeline.toml
+```
+
+(Requires `piighost[config]` from the editable `../../piighost` install
+that `make install` already provides.)
+
+**Dependency**: this layout requires `piighost-api >= 0.x` (the version
+that ships the `--config` flag and the `piighost.config` TOML loader).
+If you pull a pre-TOML image from `ghcr.io/athroniaeth/piighost-api` the
+container will fail to start because the entrypoint passes `--config`
+which the old CLI does not understand. Either:
+
+- Build the API image locally (`make docker-up-local` overlays the
+  sibling `../piighost` source into the image at boot); or
+- Wait for the next published `piighost-api` release that includes the
+  TOML loader.
+
 ## Conventions
 
 - **Commits**: Conventional Commits via Commitizen (`feat:`, `fix:`, `refactor:`, etc.)
