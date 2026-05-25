@@ -19,4 +19,4 @@ services:
     environment:
       # Replaces the upstream "piighost[gliner2,langfuse]" PyPI install
       # with an editable install of the local checkout.
-      EXTRA_PACKAGES: "-e /srv/piighost[gliner2,langfuse]"
+      EXTRA_PACKAGES: "-e /srv/piighost[gliner2,langfuse,config]"

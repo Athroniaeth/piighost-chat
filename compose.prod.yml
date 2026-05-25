@@ -62,10 +62,11 @@ services:
       dockerfile: Dockerfile.piighost-api
     restart: unless-stopped
     environment:
+      - PIIGHOST_CONFIG=/app/pipeline.toml
       - REDIS_URL=redis://redis:6379
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
-      - EXTRA_PACKAGES=piighost[gliner2]
+      - EXTRA_PACKAGES=piighost[gliner2,config]
       - UV_LINK_MODE=copy
     volumes:
       - huggingface-cache:/root/.cache/huggingface
