@@ -2,15 +2,16 @@ services:
   piighost-api:
     image: ghcr.io/athroniaeth/piighost-api:latest
     environment:
+      - PIIGHOST_CONFIG=/app/pipeline.toml
       - REDIS_URL=redis://redis:6379
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
-      - EXTRA_PACKAGES=piighost[gliner2,langfuse]
+      - EXTRA_PACKAGES=piighost[gliner2,langfuse,config]
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
     volumes:
-      - ./pipeline.py:/app/pipeline.py
+      - ./pipeline.toml:/app/pipeline.toml
       - huggingface-cache:/root/.cache/huggingface
       - uv-cache:/root/.cache/uv
     depends_on:
