@@ -44,6 +44,18 @@ from piighost_chat.schemas import (
 logger = logging.getLogger(__name__)
 
 
+async def _forget_thread_quietly(client, thread_id: str) -> None:
+    """Best-effort PII purge: a failure must not break thread deletion."""
+    try:
+        await client.forget_thread(thread_id)
+    except Exception:
+        logger.warning(
+            "piighost forget failed for thread %s (mappings expire via TTL)",
+            thread_id,
+            exc_info=True,
+        )
+
+
 def _chunk_text(content: object) -> str:
     """Normalize an AIMessageChunk content to plain text.
 
@@ -336,14 +348,7 @@ def create_app() -> Litestar:
     async def delete_thread(thread_id: str) -> None:
         async with await psycopg.AsyncConnection.connect(pg_url) as conn:
             await delete_thread_data(conn, thread_id)
-        try:
-            await pii_client.forget_thread(thread_id)
-        except Exception:
-            logger.warning(
-                "piighost forget failed for thread %s (mappings expire via TTL)",
-                thread_id,
-                exc_info=True,
-            )
+        await _forget_thread_quietly(pii_client, thread_id)
 
     @get("/health")
     async def health() -> dict[str, str]:

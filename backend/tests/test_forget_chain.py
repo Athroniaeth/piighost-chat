@@ -21,9 +21,6 @@ async def test_cleanup_calls_forget_for_each_stale_thread(monkeypatch):
         async def __aexit__(self, *args):
             return None
 
-        async def execute(self, *args, **kwargs):
-            return None
-
     async def fake_connect(url):
         return FakeConn()
 
@@ -62,3 +59,20 @@ async def test_cleanup_forget_failure_does_not_abort_db_cleanup(monkeypatch):
     await worker.cleanup_stale_threads()
     deleted.assert_awaited_once()
     fake_client.close.assert_awaited()
+
+
+async def test_forget_thread_quietly_swallows_failure():
+    from piighost_chat.app import _forget_thread_quietly
+
+    client = AsyncMock()
+    client.forget_thread.side_effect = RuntimeError("api down")
+    await _forget_thread_quietly(client, "t1")  # must not raise
+    client.forget_thread.assert_awaited_once_with("t1")
+
+
+async def test_forget_thread_quietly_calls_client():
+    from piighost_chat.app import _forget_thread_quietly
+
+    client = AsyncMock()
+    await _forget_thread_quietly(client, "t1")
+    client.forget_thread.assert_awaited_once_with("t1")
