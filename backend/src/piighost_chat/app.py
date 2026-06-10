@@ -44,7 +44,7 @@ from piighost_chat.schemas import (
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a helpful assistant. Some inputs may contain anonymized placeholders (e.g. <<PERSON_1>>, <<CITY_1>>) that replace real values for privacy reasons.
+You are a helpful assistant. Some inputs may contain anonymized placeholders (e.g. <<PERSON:1>>, <<LOCATION:1>>) that replace real values for privacy reasons.
 
 Rules:
 1. Treat every placeholder as if it were the real value. Never comment on its format, never say it is a token, never ask the user to reveal it.
@@ -72,7 +72,11 @@ def send_email(to: str, subject: str, body: str) -> str:
     Returns:
         Confirmation string.
     """
-    logging.info("[EMAIL SENT] To: %s | Subject: %s\n%s", to, subject, body)
+    logging.info(
+        "[EMAIL SENT] to=<redacted> subject_len=%d body_len=%d",
+        len(subject),
+        len(body),
+    )
     return f"Email successfully sent to {to}."
 
 
@@ -108,6 +112,38 @@ def _create_langfuse_handler() -> BaseCallbackHandler | None:
     from langfuse.langchain import CallbackHandler
 
     return CallbackHandler()
+
+
+# ------------------------------------------------------------------
+# Error handling and CORS
+# ------------------------------------------------------------------
+
+
+def handle_exception(request: Request, exc: Exception) -> Response:
+    """Log the full exception server-side; never echo internals to the client."""
+    if isinstance(exc, HTTPException):
+        status, detail = exc.status_code, exc.detail
+    else:
+        status, detail = HTTP_500_INTERNAL_SERVER_ERROR, "Internal Server Error"
+    logger.exception(
+        "Unhandled error on %s %s -> %s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+    )
+    return Response(
+        media_type="application/json",
+        status_code=status,
+        content={"status_code": status, "detail": detail},
+    )
+
+
+def _cors_origins() -> list[str]:
+    """Comma-separated CORS_ALLOW_ORIGINS, defaulting to * for local dev."""
+    raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    if not raw:
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 # ------------------------------------------------------------------
@@ -293,29 +329,6 @@ def create_app() -> Litestar:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    def handle_exception(request: Request, exc: Exception) -> Response:
-        status = (
-            exc.status_code
-            if isinstance(exc, HTTPException)
-            else HTTP_500_INTERNAL_SERVER_ERROR
-        )
-        logger.exception(
-            "Unhandled error on %s %s -> %s: %s",
-            request.method,
-            request.url.path,
-            type(exc).__name__,
-            exc,
-        )
-        return Response(
-            media_type="application/json",
-            status_code=status,
-            content={
-                "status_code": status,
-                "detail": str(exc) or type(exc).__name__,
-                "exception": type(exc).__name__,
-            },
-        )
-
     return Litestar(
         route_handlers=[
             anonymize,
@@ -330,7 +343,9 @@ def create_app() -> Litestar:
         ],
         lifespan=[lifespan],
         cors_config=CORSConfig(
-            allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+            allow_origins=_cors_origins(),
+            allow_methods=["*"],
+            allow_headers=["*"],
         ),
         openapi_config=OpenAPIConfig(
             title="piighost-chat",
