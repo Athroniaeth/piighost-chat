@@ -16,9 +16,20 @@ from taskiq import TaskiqScheduler
 from taskiq.schedule_sources import LabelScheduleSource
 from taskiq_redis import ListQueueBroker
 
+from piighost.client import PIIGhostClient
+
 from piighost_chat.utils import delete_thread_data, list_stale_thread_ids
 
 logger = logging.getLogger(__name__)
+
+
+def _build_pii_client() -> PIIGhostClient:
+    """Client for the forget-thread purge calls, built per cleanup run."""
+    return PIIGhostClient(
+        os.getenv("PIIGHOST_API_URL", "http://piighost-api:8000"),
+        api_key=os.getenv("PIIGHOST_API_KEY", ""),
+    )
+
 
 REDIS_URL = os.getenv("TASKIQ_REDIS_URL", "redis://redis:6379/1")
 THREAD_TTL_SECONDS = float(os.getenv("THREAD_TTL_SECONDS", "3600"))
@@ -80,9 +91,22 @@ async def cleanup_stale_threads() -> None:
         )
         if dry_run or not stale_ids:
             return
-        for tid in stale_ids:
-            await delete_thread_data(conn, tid)
-            logger.info("cleanup_stale_threads: deleted thread %s", tid)
+        client = _build_pii_client()
+        try:
+            for tid in stale_ids:
+                await delete_thread_data(conn, tid)
+                try:
+                    await client.forget_thread(tid)
+                except Exception:
+                    logger.warning(
+                        "cleanup_stale_threads: piighost forget failed for %s "
+                        "(mappings expire via the API cache TTL)",
+                        tid,
+                        exc_info=True,
+                    )
+                logger.info("cleanup_stale_threads: deleted thread %s", tid)
+        finally:
+            await client.close()
         logger.info(
             "cleanup_stale_threads: done, deleted %d thread(s)",
             len(stale_ids),

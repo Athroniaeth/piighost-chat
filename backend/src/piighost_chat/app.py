@@ -280,7 +280,14 @@ def create_app() -> Litestar:
     async def delete_thread(thread_id: str) -> None:
         async with await psycopg.AsyncConnection.connect(pg_url) as conn:
             await delete_thread_data(conn, thread_id)
-        return
+        try:
+            await pii_client.forget_thread(thread_id)
+        except Exception:
+            logger.warning(
+                "piighost forget failed for thread %s (mappings expire via TTL)",
+                thread_id,
+                exc_info=True,
+            )
 
     @get("/health")
     async def health() -> dict[str, str]:

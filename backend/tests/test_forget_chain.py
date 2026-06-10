@@ -1,0 +1,64 @@
+"""Thread deletion must purge PII mappings in piighost-api, not just checkpoints."""
+
+from unittest.mock import AsyncMock
+
+from piighost_chat import worker
+
+
+async def test_cleanup_calls_forget_for_each_stale_thread(monkeypatch):
+    fake_client = AsyncMock()
+    monkeypatch.setattr(worker, "_build_pii_client", lambda: fake_client)
+    monkeypatch.setattr(
+        worker, "list_stale_thread_ids", AsyncMock(return_value=["a", "b"])
+    )
+    monkeypatch.setattr(worker, "delete_thread_data", AsyncMock())
+    monkeypatch.setenv("CLEANUP_DRY_RUN", "false")
+
+    class FakeConn:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def execute(self, *args, **kwargs):
+            return None
+
+    async def fake_connect(url):
+        return FakeConn()
+
+    monkeypatch.setattr(worker.psycopg.AsyncConnection, "connect", fake_connect)
+
+    await worker.cleanup_stale_threads()
+
+    assert fake_client.forget_thread.await_count == 2
+    fake_client.forget_thread.assert_any_await("a")
+    fake_client.forget_thread.assert_any_await("b")
+    fake_client.close.assert_awaited()
+
+
+async def test_cleanup_forget_failure_does_not_abort_db_cleanup(monkeypatch):
+    fake_client = AsyncMock()
+    fake_client.forget_thread.side_effect = RuntimeError("api down")
+    monkeypatch.setattr(worker, "_build_pii_client", lambda: fake_client)
+    monkeypatch.setattr(worker, "list_stale_thread_ids", AsyncMock(return_value=["a"]))
+    deleted = AsyncMock()
+    monkeypatch.setattr(worker, "delete_thread_data", deleted)
+    monkeypatch.setenv("CLEANUP_DRY_RUN", "false")
+
+    class FakeConn:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+    async def fake_connect(url):
+        return FakeConn()
+
+    monkeypatch.setattr(worker.psycopg.AsyncConnection, "connect", fake_connect)
+
+    # Must not raise despite forget_thread failing.
+    await worker.cleanup_stale_threads()
+    deleted.assert_awaited_once()
+    fake_client.close.assert_awaited()
