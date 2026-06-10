@@ -118,6 +118,7 @@ export async function* streamChat(
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let eventData: string[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -127,10 +128,19 @@ export async function* streamChat(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
 
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        yield line.slice(6).replace(/\r$/, "");
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r$/, "");
+      if (line === "") {
+        if (eventData.length > 0) {
+          yield eventData.join("\n");
+          eventData = [];
+        }
+      } else if (line.startsWith("data:")) {
+        eventData.push(line.slice(5).replace(/^ /, ""));
       }
     }
+  }
+  if (eventData.length > 0) {
+    yield eventData.join("\n");
   }
 }

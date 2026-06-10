@@ -43,6 +43,24 @@ from piighost_chat.schemas import (
 
 logger = logging.getLogger(__name__)
 
+
+def _chunk_text(content: object) -> str:
+    """Normalize an AIMessageChunk content to plain text.
+
+    LangChain chunk content is either a string or a list of content
+    blocks; only text blocks carry displayable output.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return ""
+
+
 SYSTEM_PROMPT = """\
 You are a helpful assistant. Some inputs may contain anonymized placeholders (e.g. <<PERSON:1>>, <<LOCATION:1>>) that replace real values for privacy reasons.
 
@@ -263,8 +281,10 @@ def create_app() -> Litestar:
                 config=config,
                 stream_mode="messages",
             ):
-                if isinstance(chunk, AIMessageChunk) and chunk.content:
-                    yield ServerSentEventMessage(data=chunk.content)
+                if isinstance(chunk, AIMessageChunk):
+                    text = _chunk_text(chunk.content)
+                    if text:
+                        yield ServerSentEventMessage(data=text)
 
         return ServerSentEvent(content=generate())
 
