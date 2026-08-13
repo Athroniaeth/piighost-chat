@@ -4,8 +4,8 @@ Migrate to piighost 1.0 (the v2 rewrite).
 
 ### BREAKING CHANGE
 
-- Requires a piighost whose ``PIIGhostClient`` exposes ``detect`` and ``labels``
-  (added after 1.0.0), and a piighost-api >= 1.0 server.
+- Requires piighost >= 1.0.1 (whose ``PIIGhostClient`` exposes ``detect`` and
+  ``labels``) and a piighost-api >= 1.0 server.
 - ``pipeline.toml`` moves to the v2 config schema: a single composite
   ``[detector]`` with ``[[detector.detectors]]`` children, explicit ``[linker]``
   and ``[anonymizer.placeholder]``, and a now-mandatory ``[memory]`` section. The

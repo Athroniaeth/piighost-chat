@@ -1564,14 +1564,14 @@ wheels = [
 
 [[package]]
 name = "piighost"
-version = "1.0.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/02/dde4b07efc7fee65fc3a2778f1eb786984519511799635cb31a3160c5add/piighost-1.0.0.tar.gz", hash = "sha256:8627b16242b6cf4b908a9249b5986ff8a678349f63864ad2c0569e275b44f5f9", size = 2938805, upload-time = "2026-08-12T19:12:31.733Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/08/a462c96654fe2a0ecee425f1fcc31833de80f038c67ad6755cdb6ad93777/piighost-1.0.1.tar.gz", hash = "sha256:fbc66f454aee34d7e4eebdcd13dab8b24b92780a3b741b6316c1f86ad08716fa", size = 2939704, upload-time = "2026-08-13T00:13:24.36Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/0a/eba5da4d71fa3473306395990f52f25533d1dec8c4d4de9382801ce93b1c/piighost-1.0.0-py3-none-any.whl", hash = "sha256:a657c3f96ec08acb1d01447a266886984ec3637d88f0beb1f54d19d336ea2782", size = 119844, upload-time = "2026-08-12T19:12:29.852Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/ff/3b8322808fd8572fe468ae3be9f45caef2d6b4ac68f0b34eb0aeab9717b7/piighost-1.0.1-py3-none-any.whl", hash = "sha256:b7261070c7ab47e5ae4b9e0e142e60cab684a8ddb07e796866434e1e7ef6323a", size = 120447, upload-time = "2026-08-13T00:13:22.648Z" },
 ]
 
 [package.optional-dependencies]
@@ -1619,7 +1619,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-postgres", specifier = ">=2.0" },
     { name = "litestar", specifier = ">=2.16" },
     { name = "msgspec", specifier = ">=0.19" },
-    { name = "piighost", extras = ["client", "middleware"], specifier = ">=1.0" },
+    { name = "piighost", extras = ["client", "middleware"], specifier = ">=1.0.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "taskiq", specifier = ">=0.11" },
     { name = "taskiq-redis", specifier = ">=1.0" },
