@@ -3,6 +3,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.12+-blue)
 [![Deps: uv](https://img.shields.io/badge/deps-managed%20with%20uv-3E4DD8.svg)](https://docs.astral.sh/uv/)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-4B32C3.svg)](https://docs.astral.sh/ruff/)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/vFg9GHQR2s)
 
 A demo chat application that shows how to build a **privacy-preserving AI chatbot** using [piighost](https://github.com/Athroniaeth/piighost) and [piighost-api](https://github.com/Athroniaeth/piighost-api). User messages are anonymized before reaching the LLM — personal information is replaced with placeholders, and responses are deanonymized transparently.
 
@@ -154,3 +155,7 @@ make test            # Run backend tests
 make docker-up       # Start all services (detached)
 make docker-down     # Stop all services
 ```
+
+## Community
+
+Join the [Discord](https://discord.gg/vFg9GHQR2s) to get help, report bugs, request features, and discuss de-identification.
