@@ -3,13 +3,17 @@ services:
     image: ghcr.io/athroniaeth/piighost-api:latest
     environment:
       - PIIGHOST_CONFIG=/app/pipeline.toml
-      - REDIS_URL=redis://redis:6379
+      # keyshield API-key auth pepper (distinct from the piighost secrets below).
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
-      - EXTRA_PACKAGES=piighost[gliner2,langfuse,config]
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
-      - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2]
+      # piighost 1.0 Redis thread memory (pipeline.toml [memory]) encrypts stored
+      # values, so both secrets are required for the server to boot.
+      - PIIGHOST_HASH_PEPPER=${PIIGHOST_HASH_PEPPER:-}
+      - PIIGHOST_CIPHER_KEY=${PIIGHOST_CIPHER_KEY:-}
+      # piighost 1.0 is OpenTelemetry-native; point this at an OTLP endpoint to
+      # export the pipeline's spans (needs the piighost[observation] extra).
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
       - ./pipeline.toml:/app/pipeline.toml
       - huggingface-cache:/root/.cache/huggingface

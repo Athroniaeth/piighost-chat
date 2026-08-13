@@ -11,24 +11,30 @@ from __future__ import annotations
 import logging
 import os
 
+import httpx
 import psycopg
 from taskiq import TaskiqScheduler
 from taskiq.schedule_sources import LabelScheduleSource
 from taskiq_redis import ListQueueBroker
 
-from piighost.client import PIIGhostClient
+from piighost.integrations.client import PIIGhostClient
 
 from piighost_chat.utils import delete_thread_data, list_stale_thread_ids
 
 logger = logging.getLogger(__name__)
 
 
-def _build_pii_client() -> PIIGhostClient:
-    """Client for the forget-thread purge calls, built per cleanup run."""
-    return PIIGhostClient(
-        os.getenv("PIIGHOST_API_URL", "http://piighost-api:8000"),
-        api_key=os.getenv("PIIGHOST_API_KEY", ""),
-    )
+def _build_http_client() -> httpx.AsyncClient:
+    """Authenticated HTTP client for the forget-thread purge calls.
+
+    Built per cleanup run and closed at the end of it. PIIGhostClient needs an
+    injected httpx client to carry the bearer token, since its base-URL form
+    sends no auth header.
+    """
+    url = os.getenv("PIIGHOST_API_URL", "http://piighost-api:8000")
+    key = os.getenv("PIIGHOST_API_KEY", "")
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    return httpx.AsyncClient(base_url=url, headers=headers)
 
 
 REDIS_URL = os.getenv("TASKIQ_REDIS_URL", "redis://redis:6379/1")
@@ -91,7 +97,8 @@ async def cleanup_stale_threads() -> None:
         )
         if dry_run or not stale_ids:
             return
-        client = _build_pii_client()
+        http_client = _build_http_client()
+        client = PIIGhostClient(http_client)
         try:
             for tid in stale_ids:
                 await delete_thread_data(conn, tid)
@@ -100,13 +107,13 @@ async def cleanup_stale_threads() -> None:
                 except Exception:
                     logger.warning(
                         "cleanup_stale_threads: piighost forget failed for %s "
-                        "(mappings expire via the API cache TTL)",
+                        "(mappings expire via the memory TTL)",
                         tid,
                         exc_info=True,
                     )
                 logger.info("cleanup_stale_threads: deleted thread %s", tid)
         finally:
-            await client.close()
+            await http_client.aclose()
         logger.info(
             "cleanup_stale_threads: done, deleted %d thread(s)",
             len(stale_ids),

@@ -2,7 +2,22 @@
 #
 # This file is mounted into the piighost-api container at /app/pipeline.toml
 # (see compose.infra.yml) and consumed by `piighost-api serve --config`.
-# It replaces the legacy pipeline.py module-variable loader.
+#
+# It targets the piighost 1.0 (v2) config schema:
+#   - a single [detector] (composite) with [[detector.detectors]] children,
+#   - an explicit [linker] and [anonymizer.placeholder],
+#   - a [memory] section that turns this into a thread pipeline, which is what
+#     keeps a value's placeholder stable across a conversation AND lets a human
+#     correction (POST /v1/anonymize/corrected) survive until the chat turn
+#     re-anonymizes the same message.
+#
+# The label_counter placeholder emits <<PERSON:1>> style tokens, the grammar the
+# PIIGhostClient recognizer and the chat system prompt both expect.
+#
+# Two secrets are read from the environment, never from this file (both required
+# by the encrypted Redis memory below):
+#   PIIGHOST_HASH_PEPPER   any non-empty string (keys each message into its slot)
+#   PIIGHOST_CIPHER_KEY    base64 of 16, 24, or 32 bytes (encrypts stored values)
 #
 # To validate locally:
 #     uv run --no-sync piighost validate pipeline.toml
@@ -10,17 +25,17 @@
 # Coverage: GLiNER2 semantic NER + regex (common / EU / US) for layered
 # PII detection.
 
-[pipeline]
 name = "piighost-chat-default"
-description = "GLiNER2 + regex coverage for chat PII"
-schema_version = 1
 
 # ------------------------------------------------------------------
-# GLiNER2 detector : semantic NER labels
-# Requires piighost[gliner2] (installed via EXTRA_PACKAGES in compose).
+# Composite detector: GLiNER2 semantic NER layered over regex catalogs.
 # ------------------------------------------------------------------
-[[detectors]]
-name = "gliner2"
+[detector]
+type = "composite"
+
+# GLiNER2 detector: semantic NER labels.
+# Requires piighost[gliner2] (installed via EXTRA_PACKAGES in compose).
+[[detector.detectors]]
 type = "gliner2"
 model = "fastino/gliner2-multi-v1"
 threshold = 0.5
@@ -64,26 +79,45 @@ labels = [
     "health insurance number",
 ]
 
-# ------------------------------------------------------------------
-# Common regex detector : universal patterns
-# ------------------------------------------------------------------
-[[detectors]]
-name = "common"
+# Common regex detector: universal patterns.
+[[detector.detectors]]
 type = "regex"
 patterns = { EMAIL = "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}", IP_V4 = "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", IP_V6 = "\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b|\\b(?:[0-9a-fA-F]{1,4}:){1,7}:\\b|\\b::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\\b", URL = "https?://[^\\s<>\"']+[^\\s<>\"'.,;:!?\\)\\]}]", CREDIT_CARD = "\\b\\d{4}[\\s\\-]\\d{4}[\\s\\-]\\d{4}[\\s\\-]\\d{4}\\b", PHONE_INTERNATIONAL = "\\+\\d{1,3}[\\s.\\-]?\\(?\\d{1,4}\\)?(?:[\\s.\\-]?\\d{1,4}){1,4}", OPENAI_API_KEY = "sk-(?:proj-)?[A-Za-z0-9\\-_]{20,}", AWS_ACCESS_KEY = "\\bAKIA[0-9A-Z]{16}\\b", GITHUB_TOKEN = "\\bgh[ps]_[A-Za-z0-9_]{36,}\\b", STRIPE_KEY = "\\b[sr]k_(?:live|test)_[A-Za-z0-9]{24,}\\b" }
 
-# ------------------------------------------------------------------
-# EU regex detector : European patterns
-# ------------------------------------------------------------------
-[[detectors]]
-name = "eu"
+# EU regex detector: European patterns.
+[[detector.detectors]]
 type = "regex"
 patterns = { EU_IBAN = "\\b[A-Z]{2}\\d{2}[A-Z0-9]{4}\\d{7}[A-Z0-9]{0,16}\\b", EU_VAT = "\\b[A-Z]{2}\\d{8,12}\\b", FR_SSN = "\\b[12]\\d{2}(?:0[1-9]|1[0-2])\\d{2}\\d{3}\\d{3}\\d{2}(?:\\s?\\d{2})?\\b", FR_PHONE = "\\b(?:\\+33|0)[1-9](?:[\\s.\\-]?\\d{2}){4}\\b", FR_ZIP = "\\b(?:0[1-9]|[1-8]\\d|9[0-8])\\d{3}\\b", DE_PHONE = "\\b(?:\\+49|0)\\d{2,5}[\\s/\\-]?\\d{3,10}\\b", DE_ZIP = "\\b(?:0[1-9]|[1-9]\\d)\\d{3}\\b", UK_NINO = "\\b[A-CEGHJ-PR-TW-Z]{2}\\d{6}[A-D]\\b", UK_NHS = "\\b\\d{3}[\\s\\-]?\\d{3}[\\s\\-]?\\d{4}\\b", UK_POSTCODE = "\\b[A-Z]{1,2}\\d[A-Z\\d]?\\s?\\d[A-Z]{2}\\b" }
 
-# ------------------------------------------------------------------
-# US regex detector : American patterns
-# ------------------------------------------------------------------
-[[detectors]]
-name = "us"
+# US regex detector: American patterns.
+[[detector.detectors]]
 type = "regex"
 patterns = { US_SSN = "\\b(?!000|666|9\\d{2})\\d{3}-(?!00)\\d{2}-(?!0000)\\d{4}\\b", US_PHONE = "\\b(?:\\+1[\\s.\\-]?)?\\(?\\d{3}\\)?[\\s.\\-]?\\d{3}[\\s.\\-]?\\d{4}\\b", US_PASSPORT = "\\b[A-Z]\\d{8}\\b", US_ZIP_CODE = "\\b\\d{5}(?:-\\d{4})?\\b", US_EIN = "\\b\\d{2}-\\d{7}\\b", US_BANK_ROUTING = "\\b\\d{9}\\b" }
+
+# ------------------------------------------------------------------
+# Linker and placeholder: group detections into entities, then render
+# <<LABEL:n>> tokens the middleware and client can recognize and restore.
+# ------------------------------------------------------------------
+[linker]
+type = "exact"
+
+[anonymizer.placeholder]
+type = "label_counter"
+
+# ------------------------------------------------------------------
+# Redis thread memory: shared across requests so a correction persists to the
+# chat turn. Requires piighost[redis,crypto,argon2] (via EXTRA_PACKAGES).
+# ------------------------------------------------------------------
+[memory]
+type = "redis"
+url = "redis://redis:6379/0"
+namespace = "piighost"
+ttl = 3600
+
+# The hasher keys each message into its storage key; the pepper comes from the env.
+[memory.hasher]
+type = "argon2"
+
+# The cipher encrypts each stored value at rest; the base64 key comes from the env.
+[memory.cipher]
+type = "aesgcm"

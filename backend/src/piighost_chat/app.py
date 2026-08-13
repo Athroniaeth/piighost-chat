@@ -5,6 +5,7 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import httpx
 import psycopg
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessageChunk, HumanMessage
@@ -18,9 +19,8 @@ from litestar.response import ServerSentEvent, ServerSentEventMessage
 from litestar.exceptions import HTTPException
 from litestar.response import Response
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
-from piighost.client import PIIGhostClient
-from piighost.exceptions import CacheMissError
-from piighost.middleware import PIIAnonymizationMiddleware
+from piighost.integrations.client import PIIGhostClient
+from piighost.integrations.middleware import PIIAnonymizationMiddleware
 from piighost.models import Detection, Span
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -32,7 +32,6 @@ from piighost_chat.schemas import (
     ChatRequest,
     DetectResponse,
     DetectionSchema,
-    EntitySchema,
     LabelsResponse,
     MessageSchema,
     MessagesResponse,
@@ -193,7 +192,14 @@ def create_app() -> Litestar:
         "postgresql://piighost:piighost@postgres:5432/piighost_chat",
     )
 
-    pii_client = PIIGhostClient(piighost_url, api_key=piighost_key)
+    # The backend talks to piighost-api only through the PIIGhostClient: it
+    # serves the middleware as a remote thread pipeline and also exposes the
+    # detect and labels previews the inspection routes need. The injected httpx
+    # client only carries the bearer token; PIIGhostClient does not own it, so
+    # the lifespan closes http_client itself.
+    auth_headers = {"Authorization": f"Bearer {piighost_key}"} if piighost_key else {}
+    http_client = httpx.AsyncClient(base_url=piighost_url, headers=auth_headers)
+    pii_client = PIIGhostClient(http_client)
     middleware = PIIAnonymizationMiddleware(pipeline=pii_client)
 
     langfuse_handler = _create_langfuse_handler()
@@ -223,7 +229,7 @@ def create_app() -> Litestar:
             )
 
             yield
-        await pii_client.close()
+        await http_client.aclose()
 
     # ------------------------------------------------------------------
     # Routes
@@ -231,19 +237,10 @@ def create_app() -> Litestar:
 
     @post("/api/anonymize")
     async def anonymize(data: AnonymizeRequest) -> AnonymizeResponse:
-        anonymized_text, entities = await pii_client.anonymize(
-            data.message, thread_id=data.thread_id
-        )
-        return AnonymizeResponse(
-            anonymized_text=anonymized_text,
-            entities=[
-                EntitySchema(
-                    label=e.label,
-                    original_text=e.detections[0].text,
-                )
-                for e in entities
-            ],
-        )
+        # The remote pipeline owns the token map, so its anonymize returns no
+        # entities; this route stays for API compatibility and reports the text.
+        result = await pii_client.anonymize(data.message, thread_id=data.thread_id)
+        return AnonymizeResponse(anonymized_text=result.text, entities=[])
 
     @post("/api/detect")
     async def detect(data: AnonymizeRequest) -> DetectResponse:
@@ -252,34 +249,35 @@ def create_app() -> Litestar:
             DetectionSchema(
                 text=d.text,
                 label=d.label,
-                start_pos=d.position.start_pos,
-                end_pos=d.position.end_pos,
+                start_pos=d.span.start,
+                end_pos=d.span.end,
                 confidence=d.confidence,
             )
-            for e in entities
-            for d in e.detections
+            for entity in entities
+            for d in entity.detections
         ]
         return DetectResponse(detections=detections)
 
     @put("/api/detect")
     async def override_detect(data: OverrideDetectRequest) -> None:
+        # A human correction is authoritative; anonymize_corrected writes it into
+        # the thread's memory, so the chat turn re-anonymizes the same message
+        # with these very spans.
         detections = [
             Detection(
+                span=Span(d.start_pos, d.end_pos),
                 text=d.text,
                 label=d.label,
-                position=Span(d.start_pos, d.end_pos),
                 confidence=d.confidence,
             )
             for d in data.detections
         ]
-        await pii_client.override_detections(
-            data.message, detections, thread_id=data.thread_id
-        )
+        await pii_client.anonymize_corrected(data.message, data.thread_id, detections)
 
     @get("/api/labels")
     async def get_labels() -> LabelsResponse:
-        config = await pii_client.get_config()
-        return LabelsResponse(labels=config.get("labels") or [])
+        labels = await pii_client.labels()
+        return LabelsResponse(labels=labels)
 
     @post("/api/chat")
     async def chat(data: ChatRequest) -> ServerSentEvent:
@@ -312,12 +310,7 @@ def create_app() -> Litestar:
             content = getattr(m, "content", "")
             if not content:
                 continue
-            try:
-                content, _ = await pii_client.deanonymize(content, thread_id=thread_id)
-            except CacheMissError:
-                content = await pii_client.deanonymize_with_ent(
-                    content, thread_id=thread_id
-                )
+            content = await pii_client.deanonymize(content, thread_id=thread_id)
             messages.append(MessageSchema(role=m.type, content=content))
         return MessagesResponse(messages=messages)
 

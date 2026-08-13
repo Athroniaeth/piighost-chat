@@ -3,15 +3,6 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
-name = "aiocache"
-version = "0.12.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7a/64/b945b8025a9d1e6e2138845f4022165d3b337f55f50984fbc6a4c0a1e355/aiocache-0.12.3.tar.gz", hash = "sha256:f528b27bf4d436b497a1d0d1a8f59a542c153ab1e37c3621713cb376d44c4713", size = 132196, upload-time = "2024-09-25T13:20:23.823Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/d7/15d67e05b235d1ed8c3ce61688fe4d84130e72af1657acadfaac3479f4cf/aiocache-0.12.3-py2.py3-none-any.whl", hash = "sha256:889086fc24710f431937b87ad3720a289f7fc31c4fd8b68e9f918b9bacd8270d", size = 28199, upload-time = "2024-09-25T13:20:22.688Z" },
-]
-
-[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1573,14 +1564,14 @@ wheels = [
 
 [[package]]
 name = "piighost"
-version = "0.14.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/f8/f585760938dbec9d41b7a34ecf15180c0c0cb320a7932a02fa8b7e8490f2/piighost-0.14.0.tar.gz", hash = "sha256:748399a098279b0ff3df612d7dc6ab40819cf824280dce665fb8307d71807489", size = 1123706, upload-time = "2026-06-10T05:14:48.443Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/08/a462c96654fe2a0ecee425f1fcc31833de80f038c67ad6755cdb6ad93777/piighost-1.0.1.tar.gz", hash = "sha256:fbc66f454aee34d7e4eebdcd13dab8b24b92780a3b741b6316c1f86ad08716fa", size = 2939704, upload-time = "2026-08-13T00:13:24.36Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/35/53e622fcbe849bfac32f51d78daeefe3f20db42ed80436a147b367612106/piighost-0.14.0-py3-none-any.whl", hash = "sha256:75f2dac15c762b3f3bf72c604fc2f10fb69630dc0b5be073a6b0212c69e15285", size = 117264, upload-time = "2026-06-10T05:14:47.002Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/ff/3b8322808fd8572fe468ae3be9f45caef2d6b4ac68f0b34eb0aeab9717b7/piighost-1.0.1-py3-none-any.whl", hash = "sha256:b7261070c7ab47e5ae4b9e0e142e60cab684a8ddb07e796866434e1e7ef6323a", size = 120447, upload-time = "2026-08-13T00:13:22.648Z" },
 ]
 
 [package.optional-dependencies]
@@ -1588,7 +1579,6 @@ client = [
     { name = "httpx" },
 ]
 middleware = [
-    { name = "aiocache" },
     { name = "langchain" },
 ]
 
@@ -1597,7 +1587,6 @@ name = "piighost-chat"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "aiocache" },
     { name = "keyshield", extra = ["cli"] },
     { name = "langchain" },
     { name = "langchain-litellm" },
@@ -1623,7 +1612,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiocache", specifier = ">=0.12.3" },
     { name = "keyshield", extras = ["cli"], specifier = ">=2.0.0" },
     { name = "langchain", specifier = ">=1.2" },
     { name = "langchain-litellm", specifier = ">=0.6.4" },
@@ -1631,7 +1619,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-postgres", specifier = ">=2.0" },
     { name = "litestar", specifier = ">=2.16" },
     { name = "msgspec", specifier = ">=0.19" },
-    { name = "piighost", extras = ["client", "middleware"], specifier = ">=0.14" },
+    { name = "piighost", extras = ["client", "middleware"], specifier = ">=1.0.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "taskiq", specifier = ">=0.11" },
     { name = "taskiq-redis", specifier = ">=1.0" },
