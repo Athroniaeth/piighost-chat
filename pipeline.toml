@@ -33,50 +33,20 @@ name = "piighost-chat-default"
 [detector]
 type = "composite"
 
-# GLiNER2 detector: semantic NER labels.
+# GLiNER2 detector: only the SEMANTIC PII a regex cannot pin down (names,
+# addresses, organizations). Structured PII (email, phone, IBAN, cards, IPs,
+# SSNs, zip codes, ...) is left to the regex detectors below, which are exact
+# and cheap, so nothing is detected twice.
 # Requires piighost[gliner2] (installed via EXTRA_PACKAGES in compose).
 [[detector.detectors]]
 type = "gliner2"
 model = "fastino/gliner2-multi-v1"
 threshold = 0.5
 labels = [
-    # Identity
     "person",
-    "first name",
-    "last name",
-    "date of birth",
-    "age",
-    "gender",
-    "nationality",
-    # Contact
-    "email address",
-    "phone number",
     "physical address",
-    "zip code",
     "city",
-    # Official IDs
-    "social security number",
-    "passport number",
-    "driver's license number",
-    "national id number",
-    "tax identification number",
-    # Financial
-    "credit card number",
-    "bank account number",
-    "IBAN",
-    # Technical
-    "IP address",
-    "license plate number",
-    "username",
-    "password",
-    # Professional
     "organization",
-    "company",
-    "job title",
-    # Medical
-    "medical condition",
-    "medication",
-    "health insurance number",
 ]
 
 # Common regex detector: universal patterns.
@@ -93,6 +63,14 @@ patterns = { EU_IBAN = "\\b[A-Z]{2}\\d{2}[A-Z0-9]{4}\\d{7}[A-Z0-9]{0,16}\\b", EU
 [[detector.detectors]]
 type = "regex"
 patterns = { US_SSN = "\\b(?!000|666|9\\d{2})\\d{3}-(?!00)\\d{2}-(?!0000)\\d{4}\\b", US_PHONE = "\\b(?:\\+1[\\s.\\-]?)?\\(?\\d{3}\\)?[\\s.\\-]?\\d{3}[\\s.\\-]?\\d{4}\\b", US_PASSPORT = "\\b[A-Z]\\d{8}\\b", US_ZIP_CODE = "\\b\\d{5}(?:-\\d{4})?\\b", US_EIN = "\\b\\d{2}-\\d{7}\\b", US_BANK_ROUTING = "\\b\\d{9}\\b" }
+
+# ------------------------------------------------------------------
+# Resolve overlaps: when two detectors mark the same span (or two regex
+# catalogs match one value), keep the highest-confidence detection so a value
+# is tokenized once, not twice. A safety net on top of the split above.
+# ------------------------------------------------------------------
+[overlap_resolver]
+type = "confidence"
 
 # ------------------------------------------------------------------
 # Linker and placeholder: group detections into entities, then render
