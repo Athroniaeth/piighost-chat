@@ -6,14 +6,17 @@ services:
       # keyshield API-key auth pepper (distinct from the piighost secrets below).
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
-      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2]
+      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2,observation] opentelemetry-sdk opentelemetry-exporter-otlp
       # piighost 1.0 Redis thread memory (pipeline.toml [memory]) encrypts stored
       # values, so both secrets are required for the server to boot.
       - PIIGHOST_HASH_PEPPER=${PIIGHOST_HASH_PEPPER:-}
       - PIIGHOST_CIPHER_KEY=${PIIGHOST_CIPHER_KEY:-}
-      # piighost 1.0 is OpenTelemetry-native; point this at an OTLP endpoint to
-      # export the pipeline's spans (needs the piighost[observation] extra).
+      # piighost 1.0 is OpenTelemetry-native; set both OTEL_EXPORTER_* vars to
+      # export the pipeline's spans to an OTLP backend (e.g. Langfuse). Empty
+      # means export is a no-op.
+      - OTEL_SERVICE_NAME=piighost-api
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
     volumes:
       - ./pipeline.toml:/app/pipeline.toml
       - huggingface-cache:/root/.cache/huggingface

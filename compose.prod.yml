@@ -66,11 +66,17 @@ services:
       - PIIGHOST_CONFIG=/app/pipeline.toml
       - SECRET_PEPPER=${SECRET_PEPPER:-}
       - API_KEY_default=${PIIGHOST_API_KEY:-}
-      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2]
+      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2,observation] opentelemetry-sdk opentelemetry-exporter-otlp
       # piighost 1.0 encrypted Redis thread memory (pipeline.toml [memory]).
       # Both secrets are REQUIRED for piighost-api to boot.
       - PIIGHOST_HASH_PEPPER=${PIIGHOST_HASH_PEPPER:-}
       - PIIGHOST_CIPHER_KEY=${PIIGHOST_CIPHER_KEY:-}
+      # Observability: export piighost's per-stage OTel spans to an OTLP backend
+      # (e.g. Langfuse). Set the two OTEL_EXPORTER_* vars in the Coolify UI;
+      # empty here means export is a no-op.
+      - OTEL_SERVICE_NAME=piighost-api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
       - UV_LINK_MODE=copy
     volumes:
       - huggingface-cache:/root/.cache/huggingface
