@@ -21,6 +21,7 @@ from litestar.response import Response
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 from piighost.integrations.client import PIIGhostClient
 from piighost.integrations.middleware import PIIAnonymizationMiddleware
+from piighost.models import Detection, Span
 
 from langchain_core.callbacks import BaseCallbackHandler
 
@@ -31,7 +32,6 @@ from piighost_chat.schemas import (
     ChatRequest,
     DetectResponse,
     DetectionSchema,
-    EntitySchema,
     LabelsResponse,
     MessageSchema,
     MessagesResponse,
@@ -192,11 +192,10 @@ def create_app() -> Litestar:
         "postgresql://piighost:piighost@postgres:5432/piighost_chat",
     )
 
-    # One authenticated HTTP client, shared two ways: the PIIGhostClient drives
-    # it as a remote thread pipeline (for the middleware, deanonymize, and
-    # forget), and the inspection routes below call the same client directly for
-    # the richer /v1/detect and /v1/anonymize/corrected surface the pipeline
-    # client does not expose. PIIGhostClient does not own an injected client, so
+    # The backend talks to piighost-api only through the PIIGhostClient: it
+    # serves the middleware as a remote thread pipeline and also exposes the
+    # detect and labels previews the inspection routes need. The injected httpx
+    # client only carries the bearer token; PIIGhostClient does not own it, so
     # the lifespan closes http_client itself.
     auth_headers = {"Authorization": f"Bearer {piighost_key}"} if piighost_key else {}
     http_client = httpx.AsyncClient(base_url=piighost_url, headers=auth_headers)
@@ -238,77 +237,47 @@ def create_app() -> Litestar:
 
     @post("/api/anonymize")
     async def anonymize(data: AnonymizeRequest) -> AnonymizeResponse:
-        response = await http_client.post(
-            "/v1/anonymize",
-            json={"text": data.message, "thread_id": data.thread_id},
-        )
-        response.raise_for_status()
-        body = response.json()
-        return AnonymizeResponse(
-            anonymized_text=body["anonymized_text"],
-            entities=[
-                EntitySchema(
-                    label=entity["label"],
-                    original_text=entity["detections"][0]["text"],
-                )
-                for entity in body["entities"]
-                if entity["detections"]
-            ],
-        )
+        # The remote pipeline owns the token map, so its anonymize returns no
+        # entities; this route stays for API compatibility and reports the text.
+        result = await pii_client.anonymize(data.message, thread_id=data.thread_id)
+        return AnonymizeResponse(anonymized_text=result.text, entities=[])
 
     @post("/api/detect")
     async def detect(data: AnonymizeRequest) -> DetectResponse:
-        response = await http_client.post(
-            "/v1/detect",
-            json={"text": data.message, "thread_id": data.thread_id},
-        )
-        response.raise_for_status()
-        body = response.json()
+        entities = await pii_client.detect(data.message, thread_id=data.thread_id)
         detections = [
             DetectionSchema(
-                text=d["text"],
-                label=d["label"],
-                start_pos=d["start_pos"],
-                end_pos=d["end_pos"],
-                confidence=d["confidence"],
+                text=d.text,
+                label=d.label,
+                start_pos=d.span.start,
+                end_pos=d.span.end,
+                confidence=d.confidence,
             )
-            for entity in body["entities"]
-            for d in entity["detections"]
+            for entity in entities
+            for d in entity.detections
         ]
         return DetectResponse(detections=detections)
 
     @put("/api/detect")
     async def override_detect(data: OverrideDetectRequest) -> None:
-        # The server's /v1/anonymize/corrected takes Detection.to_dict() shape
-        # (start/end), while the frontend wire uses start_pos/end_pos. Correcting
-        # here writes the human-authoritative set into the thread's memory, so
-        # the chat turn re-anonymizes the same message with these very spans.
-        corrected = [
-            {
-                "text": d.text,
-                "label": d.label,
-                "start": d.start_pos,
-                "end": d.end_pos,
-                "confidence": d.confidence,
-            }
+        # A human correction is authoritative; anonymize_corrected writes it into
+        # the thread's memory, so the chat turn re-anonymizes the same message
+        # with these very spans.
+        detections = [
+            Detection(
+                span=Span(d.start_pos, d.end_pos),
+                text=d.text,
+                label=d.label,
+                confidence=d.confidence,
+            )
             for d in data.detections
         ]
-        response = await http_client.post(
-            "/v1/anonymize/corrected",
-            json={
-                "text": data.message,
-                "thread_id": data.thread_id,
-                "detections": corrected,
-            },
-        )
-        response.raise_for_status()
+        await pii_client.anonymize_corrected(data.message, data.thread_id, detections)
 
     @get("/api/labels")
     async def get_labels() -> LabelsResponse:
-        response = await http_client.get("/v1/labels")
-        response.raise_for_status()
-        body = response.json()
-        return LabelsResponse(labels=body.get("labels") or [])
+        labels = await pii_client.labels()
+        return LabelsResponse(labels=labels)
 
     @post("/api/chat")
     async def chat(data: ChatRequest) -> ServerSentEvent:
