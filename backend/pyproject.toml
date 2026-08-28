@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "piighost[client,middleware]>=1.0.1",
+    "piighost[client,middleware]>=1.5",
     "langchain>=1.2",
     "langgraph-checkpoint-postgres>=2.0",
     "litestar>=2.16",
