@@ -19,4 +19,4 @@ services:
     environment:
       # Replaces the upstream PyPI install with an editable install of the local
       # checkout, matching the base compose extras.
-      EXTRA_PACKAGES: "-e /srv/piighost[gliner2,config,redis,crypto,argon2]"
+      EXTRA_PACKAGES: "-e /srv/piighost[gliner2,config,redis,crypto,argon2] gliner2[local]"
