@@ -73,7 +73,7 @@ services:
       # container never becomes healthy, so every service that resolves
       # piighost-api by name gets a name resolution error instead. Redundant
       # once piighost 1.8 is released, which names the extra itself.
-      - EXTRA_PACKAGES=${EXTRA_PACKAGES:-piighost[gliner2,config,redis,crypto,argon2,observation] gliner2[local] opentelemetry-sdk opentelemetry-exporter-otlp}
+      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2,observation] gliner2[local] opentelemetry-sdk opentelemetry-exporter-otlp
       # piighost 1.0 encrypted Redis thread memory (pipeline.toml [memory]).
       # Both secrets are REQUIRED for piighost-api to boot.
       - PIIGHOST_HASH_PEPPER=${PIIGHOST_HASH_PEPPER:-}
