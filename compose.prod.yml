@@ -73,7 +73,7 @@ services:
       # container never becomes healthy, so every service that resolves
       # piighost-api by name gets a name resolution error instead. Redundant
       # once piighost 1.8 is released, which names the extra itself.
-      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2,observation] gliner2[local] opentelemetry-sdk opentelemetry-exporter-otlp
+      - EXTRA_PACKAGES=piighost[gliner2,config,redis,crypto,argon2,observation]>=1.7 gliner2[local] opentelemetry-sdk opentelemetry-exporter-otlp
       # piighost 1.0 encrypted Redis thread memory (pipeline.toml [memory]).
       # Both secrets are REQUIRED for piighost-api to boot.
       - PIIGHOST_HASH_PEPPER=${PIIGHOST_HASH_PEPPER:-}
@@ -147,6 +147,21 @@ services:
   worker:
     build: ./backend
     restart: unless-stopped
+    healthcheck:
+      # taskiq serves no HTTP, and the image carries neither pgrep nor ps —
+      # the check that used to be here therefore failed every time it ran,
+      # which is worse than having none. This one pings the broker with the
+      # venv's python: a worker that cannot reach Redis consumes nothing,
+      # and an interpreter that cannot answer is gone.
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import os, redis; redis.Redis.from_url(os.environ["TASKIQ_REDIS_URL"]).ping()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       - PIIGHOST_API_URL=http://piighost-api:8000
       - PIIGHOST_API_KEY=${PIIGHOST_API_KEY:-}
@@ -168,6 +183,19 @@ services:
   scheduler:
     build: ./backend
     restart: unless-stopped
+    healthcheck:
+      # taskiq serves no HTTP, so the check is that its process is still the
+      # one running. A scheduler that died leaves the container up with
+      # nothing enqueueing the periodic work, silently.
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import os, redis; redis.Redis.from_url(os.environ["TASKIQ_REDIS_URL"]).ping()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       - TASKIQ_REDIS_URL=redis://redis:6379/1
       - THREAD_TTL_SECONDS=${THREAD_TTL_SECONDS:-3600}

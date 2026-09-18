@@ -54,6 +54,21 @@ services:
       retries: 20
 
   worker:
+    healthcheck:
+      # taskiq serves no HTTP, and the image carries neither pgrep nor ps —
+      # the check that used to be here therefore failed every time it ran,
+      # which is worse than having none. This one pings the broker with the
+      # venv's python: a worker that cannot reach Redis consumes nothing,
+      # and an interpreter that cannot answer is gone.
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import os, redis; redis.Redis.from_url(os.environ["TASKIQ_REDIS_URL"]).ping()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     build: ./backend
     develop:
       watch:
@@ -79,6 +94,21 @@ services:
       - piighost_chat.worker
 
   scheduler:
+    healthcheck:
+      # taskiq serves no HTTP, and the image carries neither pgrep nor ps —
+      # the check that used to be here therefore failed every time it ran,
+      # which is worse than having none. This one pings the broker with the
+      # venv's python: a worker that cannot reach Redis consumes nothing,
+      # and an interpreter that cannot answer is gone.
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import os, redis; redis.Redis.from_url(os.environ["TASKIQ_REDIS_URL"]).ping()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     build: ./backend
     develop:
       watch:
